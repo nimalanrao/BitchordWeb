@@ -758,13 +758,46 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                 {artist}
               </div>
 
-              {/*  Audio Quality Lossless Badge - Bigger */}
-              <div className="flex items-center justify-center gap-2 mt-2 text-xs sm:text-[13px] font-bold tracking-widest text-white/60 uppercase select-none">
-                <svg className="size-3.5 fill-current opacity-80" viewBox="0 0 24 24">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.85.94-2.94-1 .04-2.18.66-2.88 1.48-.56.64-1.05 1.74-.92 2.81 1.11.09 2.23-.58 2.86-1.35z" />
-                </svg>
-                <span>HI-RES LOSSLESS · 24-BIT · 48 KHZ · FLAC · 1709 KBPS</span>
-              </div>
+              {/* Actual Audio Quality & Codec Format Badge */}
+              {(() => {
+                const info = nowPlaying?.streamInfo;
+                // Parse actual format, e.g. "251 opus 140kbps via VISIONOS direct" or "140 aac 128kbps via WEB SABR"
+                let codec = 'OPUS';
+                let bitrate = '160 KBPS';
+                let sampleRate = '48 KHZ';
+                let bitDepth = '16-BIT';
+
+                if (info) {
+                  const upper = info.toUpperCase();
+                  if (upper.includes('OPUS')) {
+                    codec = 'OPUS';
+                    sampleRate = '48 KHZ';
+                    bitDepth = '16-BIT';
+                  } else if (upper.includes('AAC') || upper.includes('MP4A')) {
+                    codec = 'AAC';
+                    sampleRate = '44.1 KHZ';
+                    bitDepth = '16-BIT';
+                  } else if (upper.includes('FLAC')) {
+                    codec = 'FLAC';
+                    sampleRate = '48 KHZ';
+                    bitDepth = '24-BIT';
+                  }
+
+                  const matchBitrate = info.match(/(\d+)\s*kbps/i);
+                  if (matchBitrate) {
+                    bitrate = `${matchBitrate[1]} KBPS`;
+                  }
+                }
+
+                return (
+                  <div className="flex items-center justify-center gap-2 mt-2 text-xs sm:text-[13px] font-bold tracking-widest text-white/60 uppercase select-none">
+                    <svg className="size-3.5 fill-current opacity-80" viewBox="0 0 24 24">
+                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.85.94-2.94-1 .04-2.18.66-2.88 1.48-.56.64-1.05 1.74-.92 2.81 1.11.09 2.23-.58 2.86-1.35z" />
+                    </svg>
+                    <span>{bitDepth} · {sampleRate} · {codec} · {bitrate}</span>
+                  </div>
+                );
+              })()}
 
               {/* 6-Button Utility Row - Bigger Icons and Targets */}
               <div className="flex items-center justify-center gap-6 sm:gap-7 mt-5 mb-2">
