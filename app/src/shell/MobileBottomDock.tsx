@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from 'react-router';
 import { ForwardIcon, PauseIcon, PlayIcon } from '@/components/icons/Transport';
-import { AlbumsIcon } from '@/components/icons/NavIcons';
 import { LogoMark } from '@/components/icons/LogoMark';
 import { sizedArtwork } from '@/lib/artwork';
 import { usePlayer } from '@/state/player';
@@ -18,7 +17,7 @@ function FilledHomeIcon({ size = 20, className }: { size?: number; className?: s
       className={className}
       aria-hidden="true"
     >
-      <path d="M12 3.188L2.5 11.25H5.5V20.5H10.5V14.5H13.5V20.5H18.5V11.25H21.5L12 3.188Z" />
+      <path d="M12.707 2.293a1 1 0 00-1.414 0l-9 9A1 1 0 003 13h1v7a2 2 0 002 2h4a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h4a2 2 0 002-2v-7h1a1 1 0 00.707-1.707l-9-9z" />
     </svg>
   );
 }
@@ -45,6 +44,23 @@ function GridIcon({ size = 20, className }: { size?: number; className?: string 
   );
 }
 
+function AppleLibraryIcon({ size = 20, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="7" y="2.5" width="10" height="2" rx="1" opacity="0.45" />
+      <rect x="5.5" y="5.5" width="13" height="2" rx="1" opacity="0.7" />
+      <rect x="4" y="8.5" width="16" height="12.5" rx="3" />
+    </svg>
+  );
+}
+
 function SearchGlassIcon({ size = 22, className }: { size?: number; className?: string }) {
   return (
     <svg
@@ -53,14 +69,14 @@ function SearchGlassIcon({ size = 22, className }: { size?: number; className?: 
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.4"
+      strokeWidth="2.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      <circle cx="11" cy="11" r="7.5" />
-      <line x1="16.5" y1="16.5" x2="21.5" y2="21.5" />
+      <circle cx="10.5" cy="10.5" r="7" />
+      <line x1="15.8" y1="15.8" x2="21" y2="21" />
     </svg>
   );
 }
@@ -76,12 +92,12 @@ export function MobileMiniPlayer() {
 
   return (
     <div
-      className="pointer-events-auto relative flex h-[58px] w-full max-w-[420px] items-center justify-between overflow-hidden rounded-full bg-[#18181a]/85 px-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-2xl border border-white/12 transition-all"
+      className="pointer-events-auto relative flex h-[58px] w-full max-w-[420px] items-center justify-between overflow-hidden rounded-[9999px] bg-[#18181a]/85 px-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-2xl border border-white/12 transition-all"
       role="region"
       aria-label="Mini Player"
     >
       {/* 2px progress bar at top */}
-      <div className="absolute top-0 inset-x-5 h-[2px] overflow-hidden pointer-events-none rounded-full bg-white/10">
+      <div className="absolute top-0 inset-x-6 h-[2px] overflow-hidden pointer-events-none rounded-[9999px] bg-white/10">
         <div
           ref={bar}
           className="size-full origin-left scale-x-(--progress) bg-key transition-[background-color] duration-120 ease-in [--progress:0]"
@@ -123,7 +139,7 @@ export function MobileMiniPlayer() {
       {/* Play/Pause and Next controls */}
       <div className="flex flex-none items-center gap-1.5 pl-2">
         <button
-          className="grid size-9 place-items-center rounded-full text-white transition-transform active:scale-90 disabled:opacity-40"
+          className="grid size-9 place-items-center rounded-[9999px] text-white transition-transform active:scale-90 disabled:opacity-40"
           disabled={!nowPlaying}
           aria-label={playing ? 'Pause' : 'Play'}
           onClick={(e) => {
@@ -134,7 +150,7 @@ export function MobileMiniPlayer() {
           {playing ? <PauseIcon size={26} /> : <PlayIcon size={26} />}
         </button>
         <button
-          className="grid size-9 place-items-center rounded-full text-white transition-transform active:scale-90 disabled:opacity-40"
+          className="grid size-9 place-items-center rounded-[9999px] text-white transition-transform active:scale-90 disabled:opacity-40"
           disabled={!nowPlaying || !hasNext}
           aria-label="Next"
           onClick={(e) => {
@@ -173,14 +189,14 @@ export function MobileBottomNav() {
   return (
     <nav className="pointer-events-auto flex w-full max-w-[420px] items-center justify-between gap-3" aria-label="Mobile Navigation">
       {/* Left Dock Capsule: Home, Explore, Library */}
-      <div className="flex h-[58px] flex-1 items-center justify-around rounded-full bg-[#18181a]/85 px-2 shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-2xl border border-white/12">
+      <div className="flex h-[58px] flex-1 items-center justify-around rounded-[9999px] bg-[#18181a]/85 px-2 shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-2xl border border-white/12">
         {/* Home */}
         <button
           onClick={() => handleNavigate('/home')}
-          className={`flex flex-col items-center justify-center transition-all duration-200 active:scale-95 ${
+          className={`flex h-[44px] flex-col items-center justify-center transition-all duration-200 active:scale-95 ${
             isHome
-              ? 'rounded-full bg-[#2c2c2e]/90 px-5 py-1.5 text-white shadow-sm'
-              : 'px-3 py-1.5 text-[#8e8e93] hover:text-white'
+              ? 'rounded-[9999px] bg-[#2c2c2e]/90 px-5 text-white shadow-sm'
+              : 'px-3 text-[#8e8e93] hover:text-white'
           }`}
           aria-label="Home"
           aria-current={isHome ? 'page' : undefined}
@@ -192,10 +208,10 @@ export function MobileBottomNav() {
         {/* Explore */}
         <button
           onClick={() => handleNavigate('/new')}
-          className={`flex flex-col items-center justify-center transition-all duration-200 active:scale-95 ${
+          className={`flex h-[44px] flex-col items-center justify-center transition-all duration-200 active:scale-95 ${
             isExplore
-              ? 'rounded-full bg-[#2c2c2e]/90 px-5 py-1.5 text-white shadow-sm'
-              : 'px-3 py-1.5 text-[#8e8e93] hover:text-white'
+              ? 'rounded-[9999px] bg-[#2c2c2e]/90 px-5 text-white shadow-sm'
+              : 'px-3 text-[#8e8e93] hover:text-white'
           }`}
           aria-label="Explore"
           aria-current={isExplore ? 'page' : undefined}
@@ -207,15 +223,15 @@ export function MobileBottomNav() {
         {/* Library */}
         <button
           onClick={() => handleNavigate('/library/recent')}
-          className={`flex flex-col items-center justify-center transition-all duration-200 active:scale-95 ${
+          className={`flex h-[44px] flex-col items-center justify-center transition-all duration-200 active:scale-95 ${
             isLibrary
-              ? 'rounded-full bg-[#2c2c2e]/90 px-5 py-1.5 text-white shadow-sm'
-              : 'px-3 py-1.5 text-[#8e8e93] hover:text-white'
+              ? 'rounded-[9999px] bg-[#2c2c2e]/90 px-5 text-white shadow-sm'
+              : 'px-3 text-[#8e8e93] hover:text-white'
           }`}
           aria-label="Library"
           aria-current={isLibrary ? 'page' : undefined}
         >
-          <AlbumsIcon size={20} className={isLibrary ? 'text-white' : 'text-[#8e8e93]'} />
+          <AppleLibraryIcon size={20} className={isLibrary ? 'text-white' : 'text-[#8e8e93]'} />
           <span className="mt-0.5 text-[11px] font-semibold tracking-tight">Library</span>
         </button>
       </div>
@@ -223,7 +239,7 @@ export function MobileBottomNav() {
       {/* Right Circular Search Button */}
       <button
         onClick={() => handleNavigate('/search')}
-        className={`flex size-[58px] flex-none items-center justify-center rounded-full bg-[#18181a]/85 shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-2xl border transition-all active:scale-90 ${
+        className={`flex size-[58px] flex-none items-center justify-center rounded-[9999px] bg-[#18181a]/85 shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-2xl border transition-all active:scale-90 ${
           isSearch
             ? 'bg-[#2c2c2e]/90 text-white border-white/20'
             : 'border-white/12 text-[#8e8e93] hover:text-white'
@@ -244,7 +260,8 @@ export function MobileBottomDock() {
       <MobileMiniPlayer />
       <MobileBottomNav />
       {/* iOS Home Indicator */}
-      <div className="mt-0.5 h-[4px] w-32 rounded-full bg-white/25 pointer-events-none" />
+      <div className="mt-0.5 h-[4px] w-32 rounded-[9999px] bg-white/25 pointer-events-none" />
     </div>
   );
 }
+

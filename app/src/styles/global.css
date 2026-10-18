@@ -215,7 +215,7 @@
   --radius-nav: var(--radius-nav-item);
   --radius-row: var(--radius-track-row);
   --radius-pill: 1000px;
-  --radius-full: 50%;
+  --radius-full: 9999px;
 
   --ease-panel: var(--ease-out-panel);
 
