@@ -27,36 +27,79 @@ function shape([r, g, b]: Rgb): Rgb {
  * YouTube's image hosts send `Access-Control-Allow-Origin: *`, so the canvas
  * stays readable without the extension.
  */
+/**
+ * Extracts 4 distinct, prominent colors from the artwork and places them in
+ * random/dispersed spots across the 4x4 mesh with high saturation and deep blending.
+ */
 async function measure(url: string): Promise<Rgb[]> {
   const image = new Image();
   image.crossOrigin = 'anonymous';
   image.referrerPolicy = 'no-referrer';
   image.decoding = 'async';
-  // 60px: a size YouTube's pages request, so the CDN has it cached (lib/artwork.ts).
   image.src = artworkAtPixels(url, 60);
   await image.decode();
-  const side = GRID * 3;
+
+  const side = 24;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = side;
   const context = canvas.getContext('2d', { willReadFrequently: true })!;
   context.drawImage(image, 0, 0, side, side);
   const { data } = context.getImageData(0, 0, side, side);
-  const cells: Rgb[] = [];
-  for (let row = 0; row < GRID; row++) {
-    for (let col = 0; col < GRID; col++) {
-      const sum: Rgb = [0, 0, 0];
-      for (let y = row * 3; y < row * 3 + 3; y++) {
-        for (let x = col * 3; x < col * 3 + 3; x++) {
-          const i = (y * side + x) * 4;
-          sum[0] += data[i]!;
-          sum[1] += data[i + 1]!;
-          sum[2] += data[i + 2]!;
-        }
-      }
-      cells.push(shape(sum.map((v) => v / 9) as Rgb));
+
+  // Collect candidate pixel colors
+  const candidates: { rgb: Rgb; sat: number; lum: number; count: number }[] = [];
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i]!;
+    const g = data[i + 1]!;
+    const b = data[i + 2]!;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    const sat = max === 0 ? 0 : (max - min) / max;
+    if (lum > 0.04 && lum < 0.92) {
+      candidates.push({ rgb: [r, g, b], sat, lum, count: 1 });
     }
   }
-  return cells;
+
+  // Pick 4 maximally distinct and vibrant colors
+  const picked: Rgb[] = [];
+  // Sort candidates by saturation * brightness balance
+  candidates.sort((a, b) => (b.sat * 1.5 + b.lum) - (a.sat * 1.5 + a.lum));
+
+  for (const c of candidates) {
+    if (picked.length >= 4) break;
+    const isDistinct = picked.every((p) => {
+      const dr = p[0] - c.rgb[0];
+      const dg = p[1] - c.rgb[1];
+      const db = p[2] - c.rgb[2];
+      return Math.sqrt(dr * dr + dg * dg + db * db) > 45;
+    });
+    if (isDistinct) {
+      picked.push(shape(c.rgb));
+    }
+  }
+
+  // Fallbacks if fewer than 4 distinct colors found
+  while (picked.length < 4) {
+    const fallbackColors: Rgb[] = [
+      [140, 28, 64],
+      [42, 75, 160],
+      [130, 40, 150],
+      [30, 110, 100],
+    ];
+    picked.push(fallbackColors[picked.length % fallbackColors.length]!);
+  }
+
+  // Distribute the 4 picked colors across the 4x4 (16 cells) in dispersed / pseudo-random order
+  // so each color forms large overlapping blurred ambient zones across the canvas
+  const pattern = [
+    0, 1, 2, 3,
+    2, 3, 0, 1,
+    1, 0, 3, 2,
+    3, 2, 1, 0,
+  ];
+
+  return pattern.map((idx) => picked[idx]!);
 }
 
 export function meshPalette(url: string): Promise<Rgb[]> {

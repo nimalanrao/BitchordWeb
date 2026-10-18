@@ -47,9 +47,9 @@ const BLOBS = Array.from({ length: GRID * GRID }, (_, i) => {
 /** Where every blob is at [seconds]: x and y as fractions of the screen, the reach as one of its longer side. */
 function blobsAt(seconds: number): [number, number, number][] {
   return BLOBS.map(({ x, y, phase: [px, py, pr], speed: [sx, sy, sr] }) => [
-    x + 0.16 * Math.sin(seconds * sx + px),
-    y + 0.2 * Math.cos(seconds * sy + py),
-    0.62 * (0.85 + 0.2 * Math.sin(seconds * sr + pr)),
+    x + 0.22 * Math.sin(seconds * sx + px),
+    y + 0.24 * Math.cos(seconds * sy + py),
+    0.85 * (0.9 + 0.25 * Math.sin(seconds * sr + pr)),
   ]);
 }
 
@@ -92,11 +92,11 @@ float hash(vec2 p) {
 void main() {
   vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
   float side = max(uRes.x, uRes.y);
-  vec3 sum = pow(uBase, vec3(2.2)) * 0.35;
-  float weight = 0.35;
+  vec3 sum = pow(uBase, vec3(2.2)) * 0.15;
+  float weight = 0.15;
   for (int i = 0; i < ${GRID * GRID}; i++) {
     float d = distance(px, uBlob[i].xy * uRes) / (uBlob[i].z * side);
-    float w = exp(-4.0 * d * d);
+    float w = exp(-2.2 * d * d);
     sum += pow(uCol[i], vec3(2.2)) * w;
     weight += w;
   }
