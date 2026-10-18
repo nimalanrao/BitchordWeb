@@ -30,26 +30,26 @@ function useReducedMotion(): boolean {
  * up column for column with the artwork shown over them, which otherwise reads
  * as a blurred reflection.
  */
-const BLOBS = Array.from({ length: GRID * GRID }, (_, i) => {
-  const row = Math.floor(i / GRID);
-  const col = i % GRID;
-  const spread = (n: number) => -0.1 + ((n + 0.5) / GRID) * 1.2;
-  // A fixed pseudo-random phase per cell, so every track drifts the same way.
-  const seed = (n: number) => ((Math.sin(i * 12.9898 + n * 78.233) * 43758.5453) % 1 + 1) % 1;
-  return {
-    x: spread(GRID - 1 - row),
-    y: spread(col),
-    phase: [seed(1), seed(2), seed(3)].map((v) => v * Math.PI * 2) as [number, number, number],
-    speed: [0.07 + seed(4) * 0.06, 0.06 + seed(5) * 0.06, 0.05 + seed(6) * 0.04] as [number, number, number],
-  };
-});
+/**
+ * 4 large ambient color spots placed in distinct areas of the screen:
+ * Blob 0: Top-left
+ * Blob 1: Top-right
+ * Blob 2: Bottom-left
+ * Blob 3: Bottom-right
+ */
+const BLOBS = [
+  { x: 0.15, y: 0.2, phase: [0.0, 1.2, 2.5] as [number, number, number], speed: [0.09, 0.08, 0.06] as [number, number, number] },
+  { x: 0.85, y: 0.25, phase: [1.8, 3.4, 0.7] as [number, number, number], speed: [0.07, 0.10, 0.07] as [number, number, number] },
+  { x: 0.2, y: 0.82, phase: [3.1, 0.5, 4.2] as [number, number, number], speed: [0.10, 0.07, 0.05] as [number, number, number] },
+  { x: 0.82, y: 0.8, phase: [4.5, 2.7, 1.9] as [number, number, number], speed: [0.08, 0.09, 0.08] as [number, number, number] },
+];
 
-/** Where every blob is at [seconds]: x and y as fractions of the screen, the reach as one of its longer side. */
+/** Where every blob is at [seconds]: drifting smoothly in live motion */
 function blobsAt(seconds: number): [number, number, number][] {
   return BLOBS.map(({ x, y, phase: [px, py, pr], speed: [sx, sy, sr] }) => [
-    x + 0.22 * Math.sin(seconds * sx + px),
-    y + 0.24 * Math.cos(seconds * sy + py),
-    0.85 * (0.9 + 0.25 * Math.sin(seconds * sr + pr)),
+    x + 0.18 * Math.sin(seconds * sx + px),
+    y + 0.20 * Math.cos(seconds * sy + py),
+    0.65 * (0.85 + 0.2 * Math.sin(seconds * sr + pr)),
   ]);
 }
 
@@ -71,16 +71,15 @@ interface Renderer {
  * The mesh, worked out for every pixel of the screen: each blob a soft
  * Gaussian, the colours blended in linear light (so two colours meet through
  * a clean mid-tone, not a muddy one), then a triangular dither of under one
- * 8-bit step that changes every frame. That last part is what keeps smooth
- * dark gradients from banding without the visible grain a fixed texture gives.
+ * 8-bit step that changes every frame.
  */
 const VERTEX = `attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }`;
 const FRAGMENT = `
 precision highp float;
 uniform vec2 uRes;
 uniform vec3 uBase;
-uniform vec3 uCol[${GRID * GRID}];
-uniform vec3 uBlob[${GRID * GRID}];
+uniform vec3 uCol[4];
+uniform vec3 uBlob[4];
 uniform float uFrame;
 
 float hash(vec2 p) {
@@ -92,15 +91,19 @@ float hash(vec2 p) {
 void main() {
   vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
   float side = max(uRes.x, uRes.y);
-  vec3 sum = pow(uBase, vec3(2.2)) * 0.15;
-  float weight = 0.15;
-  for (int i = 0; i < ${GRID * GRID}; i++) {
+  // Dark luxury base tone so the overall canvas is rich, moody and deep
+  vec3 sum = pow(uBase * 0.5, vec3(2.2)) * 0.08;
+  float weight = 0.08;
+  for (int i = 0; i < 4; i++) {
     float d = distance(px, uBlob[i].xy * uRes) / (uBlob[i].z * side);
-    float w = exp(-2.2 * d * d);
+    // Gaussian falloff allowing distinct 4-color puddles to show with 100% soft diffusion
+    float w = exp(-4.2 * d * d);
     sum += pow(uCol[i], vec3(2.2)) * w;
     weight += w;
   }
   vec3 color = pow(sum / weight, vec3(1.0 / 2.2));
+  // Apply a subtle darkening curve to keep the background moody and high-contrast
+  color *= 0.88;
   color += (hash(gl_FragCoord.xy) + hash(gl_FragCoord.yx + 17.0) - 1.0) / 255.0;
   gl_FragColor = vec4(color, 1.0);
 }`;
@@ -284,8 +287,11 @@ export function MeshBackdrop({ artworkUrl, playing }: { artworkUrl: string | nul
 
   return (
     <div className={backdrop} aria-hidden="true" data-fallback={fallback || undefined}>
-      {/* Drawn at the screen's size by WebGL; the 2D fallback is a 64×40 canvas stretched. */}
+      {/* Drawn at the screen's size by WebGL with 4 distinct color spots and 100% live blur */}
       <canvas key={`${generation}-${fallback}`} ref={canvas} className="absolute inset-0 size-full" />
+      {/* Dark luxury scrim: gives the mesh deep mood, rich contrast for lyrics, and 100% diffused ambience */}
+      <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+      <div className="absolute inset-0 bg-radial-[at_50%_50%] from-transparent via-black/25 to-black/60 pointer-events-none" />
     </div>
   );
 }
