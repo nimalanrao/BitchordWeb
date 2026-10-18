@@ -13,7 +13,7 @@ import { botguard } from './botguard';
  * "The page needs to be reloaded" and WEB_EMBEDDED "This video is unavailable",
  * so those two are left out. googlevideo's own SABR example uses VISIONOS.
  */
-export const CLIENT_ORDER = ['VISIONOS', 'YTMUSIC', 'WEB', 'MWEB'] as const;
+export const CLIENT_ORDER = ['VISIONOS', 'IOS', 'YTMUSIC', 'WEB', 'MWEB'] as const;
 export type PlayerClientName = (typeof CLIENT_ORDER)[number];
 
 /**

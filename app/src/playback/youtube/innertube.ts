@@ -34,7 +34,18 @@ const YOUTUBE_HOSTS = new Set(['music.youtube.com', 'www.youtube.com', 'youtube.
  */
 async function innertubeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const request = input instanceof Request ? input : null;
-  const rawUrl = request ? request.url : input.toString();
+  let rawUrl: string;
+  if (typeof input === 'string') {
+    rawUrl = input;
+  } else if (input instanceof URL) {
+    rawUrl = input.toString();
+  } else if (request) {
+    rawUrl = request.url;
+  } else if (input && typeof input === 'object' && 'url' in input) {
+    rawUrl = String((input as { url: unknown }).url);
+  } else {
+    rawUrl = String(input);
+  }
 
   if (rawUrl.includes('/api/yt-proxy')) {
     return fetch(input, init);
