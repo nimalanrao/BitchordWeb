@@ -38,6 +38,8 @@ export type RepeatMode = 'off' | 'all' | 'one';
 /** Crossfade lengths offered, in seconds; 0 is off. */
 export const CROSSFADE_CHOICES = [0, 3, 6, 9, 12] as const;
 
+export type PlayerTheme = 'cinematic' | 'mesh';
+
 interface Settings {
   shuffle: boolean;
   repeat: RepeatMode;
@@ -46,6 +48,7 @@ interface Settings {
   volume: number;
   muted: boolean;
   crossfadeSec: number;
+  playerTheme: PlayerTheme;
 }
 
 interface PlayerState extends Settings {
@@ -84,12 +87,13 @@ interface PlayerState extends Settings {
   setVolume: (volume: number) => void;
   toggleMute: () => void;
   setCrossfade: (seconds: number) => void;
+  setPlayerTheme: (theme: PlayerTheme) => void;
 }
 
 // ---- Settings, kept across visits ---------------------------------------------------
 
 const SETTINGS_KEY = 'bitchord:player';
-const DEFAULT_SETTINGS: Settings = { shuffle: false, repeat: 'off', autoplay: true, volume: 1, muted: false, crossfadeSec: 0 };
+const DEFAULT_SETTINGS: Settings = { shuffle: false, repeat: 'off', autoplay: true, volume: 1, muted: false, crossfadeSec: 0, playerTheme: 'cinematic' };
 
 function loadSettings(): Settings {
   try {
@@ -100,8 +104,8 @@ function loadSettings(): Settings {
 }
 
 function saveSettings(state: Settings) {
-  const { shuffle, repeat, autoplay, volume, muted, crossfadeSec } = state;
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ shuffle, repeat, autoplay, volume, muted, crossfadeSec }));
+  const { shuffle, repeat, autoplay, volume, muted, crossfadeSec, playerTheme } = state;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ shuffle, repeat, autoplay, volume, muted, crossfadeSec, playerTheme }));
 }
 
 // ---- Decks: two engines, so a crossfade can play the next track under this one ------------
@@ -401,6 +405,11 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
 
   setCrossfade(crossfadeSec) {
     set({ crossfadeSec });
+    saveSettings(get());
+  },
+
+  setPlayerTheme(playerTheme) {
+    set({ playerTheme });
     saveSettings(get());
   },
 }));

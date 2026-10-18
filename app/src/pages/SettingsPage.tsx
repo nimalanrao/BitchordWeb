@@ -42,9 +42,10 @@ export default function SettingsPage() {
   const party = useParty();
   const autoplay = usePlayer((s) => s.autoplay);
   const crossfadeSec = usePlayer((s) => s.crossfadeSec);
+  const playerTheme = usePlayer((s) => s.playerTheme);
   const shareHistory = useHistorySettings((s) => s.share);
   const setShareHistory = useHistorySettings((s) => s.setShare);
-  const { setAutoplay, setCrossfade } = usePlayer.getState();
+  const { setAutoplay, setCrossfade, setPlayerTheme } = usePlayer.getState();
   const [lyrics, setLyrics] = useState(false);
 
   return (
@@ -88,6 +89,25 @@ export default function SettingsPage() {
             title="Listen Together"
             value={party.code ? `In party ${party.code}` : 'Listen in sync with friends'}
           />
+        </section>
+
+        <h2 className={settingsUi.sectionHeader}>Player Theme</h2>
+        <section className={settingsUi.group}>
+          <div className={settingsUi.controlRow}>
+            <div className="min-w-0 flex-1">
+              <span className="block font-medium">Player Style</span>
+              <span className="block text-[12px] text-secondary">Switch the full-screen now playing visual layout.</span>
+            </div>
+            <CustomDropdown
+              value={playerTheme}
+              onChange={setPlayerTheme}
+              ariaLabel="Player Theme"
+              options={[
+                { value: 'cinematic', label: 'Cinematic Canvas (Apple Music 1:1)' },
+                { value: 'mesh', label: 'Classic Live Mesh' },
+              ]}
+            />
+          </div>
         </section>
 
         <h2 className={settingsUi.sectionHeader}>Playback</h2>
