@@ -16,7 +16,6 @@ import {
 import { hrefFor } from '@/components/music/links';
 import { LIBRARY_SECTIONS, type LibrarySection } from '@/data/music/library';
 import { useLibraryPlaylists, useSignedIn } from '@/data/music/queries';
-import { useUi } from '@/state/ui';
 import { AccountButton } from './AccountButton';
 
 interface NavItem {
@@ -55,7 +54,7 @@ const navLabel = 'min-w-0 truncate';
 const sectionHeader = 'mt-4 px-2 py-1 type-callout-emphasized text-secondary';
 const list = 'flex flex-col';
 
-function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate: () => void }) {
+function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   return (
     <ul className={list}>
       {items.map(({ to, label, Icon }) => (
@@ -71,7 +70,7 @@ function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate: () => vo
 }
 
 /** Library and Playlists (report §1), once YouTube requests are made as the user. */
-function LibraryNav({ onNavigate }: { onNavigate: () => void }) {
+function LibraryNav({ onNavigate }: { onNavigate?: () => void }) {
   const playlists = useLibraryPlaylists();
   return (
     <>
@@ -102,40 +101,34 @@ function LibraryNav({ onNavigate }: { onNavigate: () => void }) {
 
 /** The left glass sidebar. */
 export function Sidebar() {
-  const drawerOpen = useUi((s) => s.drawerOpen);
-  const setDrawerOpen = useUi((s) => s.setDrawerOpen);
   const signedIn = useSignedIn();
-  const close = () => setDrawerOpen(false);
 
   return (
     <>
-      {/* Below 484px the sidebar is a drawer opened from the top bar's menu button. */}
       <nav
-        className="absolute inset-y-0 left-0 z-(--z-web-chrome) flex w-(--web-navigation-width) flex-col glass-material max-sm:w-[min(300px,82vw)] max-sm:-translate-x-full max-sm:shadow-glass max-sm:transition-transform max-sm:duration-(--duration-panel) max-sm:ease-panel max-sm:data-[open=true]:translate-none"
-        data-open={drawerOpen}
+        className="absolute inset-y-0 left-0 z-(--z-web-chrome) flex w-(--web-navigation-width) flex-col glass-material max-sm:hidden"
         aria-label="Main"
       >
         <div className="mt-2 ml-2 flex h-18 items-center px-5">
-          <PrefetchLink to="/home" className="inline-flex items-center gap-2 rounded-[6px]" aria-label="BitChord, Home" onClick={close}>
+          <PrefetchLink to="/home" className="inline-flex items-center gap-2 rounded-[6px]" aria-label="BitChord, Home">
             {/* White on dark, as Apple's own wordmark; it follows the label colour so it stays visible in light. */}
             <LogoMark size={22} className="text-primary" />
             <span className="type-[700_19px/24px] tracking-[-0.01em]">BitChord</span>
           </PrefetchLink>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto pr-3 pl-5 [scrollbar-width:none]">
-          <NavList items={PRIMARY} onNavigate={close} />
-          {signedIn && <LibraryNav onNavigate={close} />}
+          <NavList items={PRIMARY} />
+          {signedIn && <LibraryNav />}
         </div>
         <div className="flex flex-col gap-2 pt-3 pr-3 pb-5 pl-5">
           <AccountButton />
           <div className="flex items-center justify-end">
-            <PrefetchNavLink to="/settings" className="grid size-7 place-items-center rounded-nav text-secondary hover:bg-quinary hover:text-primary aria-[current=page]:bg-quinary aria-[current=page]:text-primary transition-all duration-200 ease-out active:scale-95" aria-label="Settings" title="Settings" onClick={close}>
+            <PrefetchNavLink to="/settings" className="grid size-7 place-items-center rounded-nav text-secondary hover:bg-quinary hover:text-primary aria-[current=page]:bg-quinary aria-[current=page]:text-primary transition-all duration-200 ease-out active:scale-95" aria-label="Settings" title="Settings">
               <Settings size={17} strokeWidth={1.9} />
             </PrefetchNavLink>
           </div>
         </div>
       </nav>
-      {drawerOpen && <div className="absolute inset-0 z-[calc(var(--z-web-chrome)-1)] hidden bg-scrim max-sm:block" onClick={close} aria-hidden="true" />}
     </>
   );
 }

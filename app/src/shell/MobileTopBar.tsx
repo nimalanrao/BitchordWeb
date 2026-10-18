@@ -1,21 +1,28 @@
-import { Menu } from 'lucide-react';
-import { PrefetchLink } from '@/components/PrefetchLink';
+import { Settings } from 'lucide-react';
+import { PrefetchLink, PrefetchNavLink } from '@/components/PrefetchLink';
 import { LogoMark } from '@/components/icons/LogoMark';
-import { useUi } from '@/state/ui';
+import { AccountButton } from './AccountButton';
 
-/** Below 484px the sidebar folds into this bar and a drawer (report §11). */
+/** Mobile top header: BitChord logo on left, Settings & Account on right (no hamburger menu). */
 export function MobileTopBar() {
-  const setDrawerOpen = useUi((s) => s.setDrawerOpen);
   return (
-    <header className="hidden max-sm:absolute max-sm:inset-x-0 max-sm:top-0 max-sm:z-[calc(var(--z-web-chrome)-2)] max-sm:grid max-sm:h-(--mobile-top-bar-height) max-sm:grid-cols-[44px_1fr_44px] max-sm:items-center max-sm:px-3.5 max-sm:glass-material">
-      <button className="grid size-11 place-items-center rounded-full" aria-label="Open menu" onClick={() => setDrawerOpen(true)}>
-        <Menu size={22} strokeWidth={2} />
-      </button>
-      <PrefetchLink to="/home" className="inline-flex items-center gap-1.5 justify-self-center type-[700_16px/20px]" aria-label="BitChord, Home">
-        <LogoMark size={20} className="text-primary" />
-        <span>BitChord</span>
+    <header className="hidden max-sm:absolute max-sm:inset-x-0 max-sm:top-0 max-sm:z-[calc(var(--z-web-chrome)-2)] max-sm:flex max-sm:h-(--mobile-top-bar-height) max-sm:items-center max-sm:justify-between max-sm:px-4 max-sm:glass-material">
+      <PrefetchLink to="/home" className="inline-flex items-center gap-2 type-[700_17px/22px]" aria-label="BitChord, Home">
+        <LogoMark size={22} className="text-primary" />
+        <span className="font-semibold tracking-tight">BitChord</span>
       </PrefetchLink>
-      <span className="w-11" />
+      <div className="flex items-center gap-2">
+        <PrefetchNavLink
+          to="/settings"
+          className="grid size-8 place-items-center rounded-full text-secondary hover:text-primary transition-all active:scale-95"
+          aria-label="Settings"
+          title="Settings"
+        >
+          <Settings size={18} strokeWidth={2} />
+        </PrefetchNavLink>
+        <AccountButton />
+      </div>
     </header>
   );
 }
+
