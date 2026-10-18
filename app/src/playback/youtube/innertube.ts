@@ -35,10 +35,15 @@ const YOUTUBE_HOSTS = new Set(['music.youtube.com', 'www.youtube.com', 'youtube.
 async function innertubeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const request = input instanceof Request ? input : null;
   const rawUrl = request ? request.url : input.toString();
+
+  if (rawUrl.includes('/api/yt-proxy')) {
+    return fetch(input, init);
+  }
+
   const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
   const url = new URL(rawUrl, base);
 
-  if (YOUTUBE_HOSTS.has(url.hostname) || url.hostname.includes('googlevideo.com')) {
+  if (url.hostname.includes('youtube.com') || url.hostname.includes('googlevideo.com')) {
     const proxyUrl = `/api/yt-proxy?url=${encodeURIComponent(url.toString())}`;
     const method = init?.method ?? request?.method ?? 'GET';
     const source = new Headers(init?.headers ?? request?.headers);

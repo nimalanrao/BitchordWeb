@@ -262,7 +262,7 @@ export class YouTubeEngine {
       shaka.net.NetworkingEngine.registerScheme(
         scheme,
         shaka.net.HttpFetchPlugin.parse,
-        shaka.net.NetworkingEngine.PluginPriority.FALLBACK,
+        shaka.net.NetworkingEngine.PluginPriority.PREFERRED,
       );
     }
     // BotGuard clients attach the streaming token to every media URL, as

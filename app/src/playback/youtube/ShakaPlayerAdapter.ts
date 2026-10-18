@@ -309,8 +309,9 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
       }
 
 
+      const isProxy = uri.includes('/api/yt-proxy') || uri.startsWith('/api/yt-proxy');
       const fetchUri =
-        (uri.includes('googlevideo.com') || uri.includes('youtube.com')) && !uri.startsWith('/api/yt-proxy')
+        (uri.includes('googlevideo.com') || uri.includes('youtube.com')) && !isProxy
           ? '/api/yt-proxy?url=' + encodeURIComponent(uri)
           : uri;
       const response = await fetch(fetchUri, init);
