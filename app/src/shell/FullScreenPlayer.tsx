@@ -646,18 +646,18 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                 </div>
               </div>
             ) : (
-              /* Full uncropped cover on the left (No zoom) */
+              /* Full uncropped cover on the left without any black bar or gap */
               <img
                 src={sizedArtwork(nowPlaying.artworkUrl, 1600)}
                 alt=""
                 referrerPolicy="no-referrer"
                 decoding="async"
-                className="absolute inset-y-0 left-0 h-full w-[54vw] max-md:w-full object-contain object-left md:object-center"
+                className="absolute inset-y-0 left-0 h-full w-[60vw] max-md:w-full object-cover object-left md:object-center"
                 style={{
                   maskImage:
-                    'linear-gradient(to right, black 0%, black 50%, rgba(0,0,0,0.65) 75%, transparent 100%)',
+                    'linear-gradient(to right, black 0%, black 35%, rgba(0,0,0,0.65) 65%, transparent 100%)',
                   WebkitMaskImage:
-                    'linear-gradient(to right, black 0%, black 50%, rgba(0,0,0,0.65) 75%, transparent 100%)',
+                    'linear-gradient(to right, black 0%, black 35%, rgba(0,0,0,0.65) 65%, transparent 100%)',
                 }}
               />
             )
@@ -665,7 +665,7 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
           {motion && !spinning && (
             <MotionArtwork
               motion={motion}
-              className="absolute inset-y-0 left-0 h-full w-[54vw] max-md:w-full object-contain object-left md:object-center opacity-90 transition-opacity duration-600"
+              className="absolute inset-y-0 left-0 h-full w-[60vw] max-md:w-full object-cover object-left md:object-center opacity-90 transition-opacity duration-600"
               playing={playing}
             />
           )}
@@ -862,8 +862,10 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                 </span>
               </button>
 
-              {/* Wavy Sine Wave Scrubber */}
-              <WavyScrubber />
+              {/* Simple Clean Line Bar Scrubber */}
+              <div className="w-full max-w-[440px] mx-auto mt-4 px-1">
+                <Scrubber />
+              </div>
 
               {/* 1:1 Transport Controls with Solid White Play Button */}
               <CinematicTransport />
