@@ -609,29 +609,63 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
           <div className="absolute inset-0 bg-black/45" />
         </div>
 
-        {/* 2. Sharp Left Artwork fading gently into the ambient blurred background */}
+        {/* 2. Left Artwork Canvas (No zoom, full uncropped cover on the left, fading gently into ambient background) */}
         <div className="absolute inset-0 size-full overflow-hidden pointer-events-none z-0">
           {nowPlaying.artworkUrl && (
-            <img
-              src={sizedArtwork(nowPlaying.artworkUrl, 1600)}
-              alt=""
-              referrerPolicy="no-referrer"
-              decoding="async"
-              className={`absolute inset-y-0 left-0 h-full w-[60vw] max-md:w-full object-cover object-left-top md:object-center transition-transform duration-1000 ${
-                spinning ? 'animate-[spin_20s_linear_infinite] scale-105' : ''
-              }`}
-              style={{
-                maskImage:
-                  'linear-gradient(to right, black 0%, black 25%, rgba(0,0,0,0.7) 45%, rgba(0,0,0,0.2) 62%, transparent 78%)',
-                WebkitMaskImage:
-                  'linear-gradient(to right, black 0%, black 25%, rgba(0,0,0,0.7) 45%, rgba(0,0,0,0.2) 62%, transparent 78%)',
-              }}
-            />
+            spinning ? (
+              /* Realistic Vinyl Record View */
+              <div className="absolute inset-y-0 left-0 w-full md:w-1/2 flex items-center justify-center p-8">
+                <div className="relative aspect-square w-[min(38vw,calc(100vh-280px),480px)] rounded-full bg-[#111113] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(255,255,255,0.08)] ring-1 ring-white/10 animate-[spin_12s_linear_infinite]">
+                  {/* Vinyl Grooves concentric rings */}
+                  <div className="size-full rounded-full border-[10px] border-[#18181b] p-6 shadow-[inset_0_0_15px_#000]">
+                    <div className="size-full rounded-full border-[8px] border-[#222226] p-6">
+                      <div className="size-full rounded-full border-[6px] border-[#1c1c20] p-6">
+                        <div className="size-full rounded-full border-[4px] border-[#26262b] p-6 flex items-center justify-center">
+                          {/* Center Album Artwork Label */}
+                          <div className="relative size-full rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg">
+                            <img
+                              src={sizedArtwork(nowPlaying.artworkUrl, 600)}
+                              alt=""
+                              referrerPolicy="no-referrer"
+                              className="size-full object-cover"
+                            />
+                            {/* Spindle hole */}
+                            <div className="absolute inset-0 m-auto size-5 rounded-full bg-[#111113] ring-2 ring-white/40 shadow-inner" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Vinyl Sheen/Gloss reflection */}
+                  <div
+                    className="absolute inset-0 rounded-full pointer-events-none opacity-25"
+                    style={{
+                      background: 'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.4) 45deg, transparent 90deg, transparent 180deg, rgba(255,255,255,0.4) 225deg, transparent 270deg)',
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Full uncropped cover on the left (No zoom) */
+              <img
+                src={sizedArtwork(nowPlaying.artworkUrl, 1600)}
+                alt=""
+                referrerPolicy="no-referrer"
+                decoding="async"
+                className="absolute inset-y-0 left-0 h-full w-[54vw] max-md:w-full object-contain object-left md:object-center"
+                style={{
+                  maskImage:
+                    'linear-gradient(to right, black 0%, black 50%, rgba(0,0,0,0.65) 75%, transparent 100%)',
+                  WebkitMaskImage:
+                    'linear-gradient(to right, black 0%, black 50%, rgba(0,0,0,0.65) 75%, transparent 100%)',
+                }}
+              />
+            )
           )}
-          {motion && (
+          {motion && !spinning && (
             <MotionArtwork
               motion={motion}
-              className="absolute inset-y-0 left-0 h-full w-[60vw] max-md:w-full object-cover opacity-90 transition-opacity duration-600"
+              className="absolute inset-y-0 left-0 h-full w-[54vw] max-md:w-full object-contain object-left md:object-center opacity-90 transition-opacity duration-600"
               playing={playing}
             />
           )}
