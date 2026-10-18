@@ -110,10 +110,8 @@ function Transport() {
 
 const volumeSliderInput = [
   'h-4 flex-1 cursor-pointer appearance-none bg-transparent touch-none',
-  '[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-[999px] [&::-webkit-slider-runnable-track]:bg-[linear-gradient(to_right,var(--systemPrimary)_var(--fill),var(--systemQuaternary)_var(--fill))] [&::-webkit-slider-runnable-track]:transition-[height] [&::-webkit-slider-runnable-track]:duration-120',
-  'hover:[&::-webkit-slider-runnable-track]:h-2 active:[&::-webkit-slider-runnable-track]:h-2',
-  '[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-[999px] [&::-moz-range-track]:bg-[linear-gradient(to_right,var(--systemPrimary)_var(--fill),var(--systemQuaternary)_var(--fill))] [&::-moz-range-track]:transition-[height] [&::-moz-range-track]:duration-120',
-  'hover:[&::-moz-range-track]:h-2 active:[&::-moz-range-track]:h-2',
+  '[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-[999px] [&::-webkit-slider-runnable-track]:bg-[linear-gradient(to_right,var(--systemPrimary)_var(--fill),var(--systemQuaternary)_var(--fill))]',
+  '[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-[999px] [&::-moz-range-track]:bg-[linear-gradient(to_right,var(--systemPrimary)_var(--fill),var(--systemQuaternary)_var(--fill))]',
   '[&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_3px_#0008] [&::-webkit-slider-thumb]:transition-[transform] [&::-webkit-slider-thumb]:duration-100 hover:[&::-webkit-slider-thumb]:scale-110 active:[&::-webkit-slider-thumb]:scale-125',
   '[&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_0_3px_#0008] [&::-moz-range-thumb]:transition-[transform] [&::-moz-range-thumb]:duration-100 hover:[&::-moz-range-thumb]:scale-110 active:[&::-moz-range-thumb]:scale-125',
 ].join(' ');
