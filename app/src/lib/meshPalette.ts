@@ -7,18 +7,18 @@ export const GRID = 2;
 const cache = new Map<string, Rgb[]>();
 
 /**
- * Shapes a color for the mesh: keeps colors saturated and distinct, but dims luminance
- * so the background is moody and dark (around 15-28% max brightness), ensuring white text
- * has rich contrast and distinct color puddles stand out without washing out.
+ * Shapes a color for the mesh: maintains rich saturation and vibrant luminous tones
+ * exactly like Apple Music's live mesh backdrop, ensuring colors stay glowing, vivid,
+ * and distinctly separated across the screen.
  */
 function shape([r, g, b]: Rgb): Rgb {
   const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   // Boost color vibrance
-  const saturated = [r, g, b].map((v) => gray + (v - gray) * 1.5) as Rgb;
+  const saturated = [r, g, b].map((v) => gray + (v - gray) * 1.45) as Rgb;
   const satGray = 0.2126 * saturated[0]! + 0.7152 * saturated[1]! + 0.0722 * saturated[2]!;
   const luminance = Math.max(0.01, satGray / 255);
-  // Darken the background to a deep luxury tone: max 0.24 luminance
-  const k = luminance > 0.22 ? 0.22 / luminance : 1;
+  // Cap at 0.48 so white lyrics remain legible while colors remain vibrant and glowing
+  const k = luminance > 0.48 ? 0.48 / luminance : luminance < 0.12 ? 0.12 / luminance : 1;
   return saturated.map((v) => Math.round(Math.min(255, Math.max(0, v * k)))) as Rgb;
 }
 

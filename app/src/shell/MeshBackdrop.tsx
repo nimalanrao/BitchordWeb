@@ -91,19 +91,17 @@ float hash(vec2 p) {
 void main() {
   vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
   float side = max(uRes.x, uRes.y);
-  // Dark luxury base tone so the overall canvas is rich, moody and deep
-  vec3 sum = pow(uBase * 0.5, vec3(2.2)) * 0.08;
-  float weight = 0.08;
+  // Base ambient foundation
+  vec3 sum = pow(uBase * 0.7, vec3(2.2)) * 0.05;
+  float weight = 0.05;
   for (int i = 0; i < 4; i++) {
     float d = distance(px, uBlob[i].xy * uRes) / (uBlob[i].z * side);
-    // Gaussian falloff allowing distinct 4-color puddles to show with 100% soft diffusion
-    float w = exp(-4.2 * d * d);
+    // Smooth, luminous Gaussian blend across the screen matching Apple Music
+    float w = exp(-3.0 * d * d);
     sum += pow(uCol[i], vec3(2.2)) * w;
     weight += w;
   }
   vec3 color = pow(sum / weight, vec3(1.0 / 2.2));
-  // Apply a subtle darkening curve to keep the background moody and high-contrast
-  color *= 0.88;
   color += (hash(gl_FragCoord.xy) + hash(gl_FragCoord.yx + 17.0) - 1.0) / 255.0;
   gl_FragColor = vec4(color, 1.0);
 }`;
@@ -287,11 +285,11 @@ export function MeshBackdrop({ artworkUrl, playing }: { artworkUrl: string | nul
 
   return (
     <div className={backdrop} aria-hidden="true" data-fallback={fallback || undefined}>
-      {/* Drawn at the screen's size by WebGL with 4 distinct color spots and 100% live blur */}
+      {/* Drawn at the screen's size by WebGL with live drifting colors and 100% soft dithered blur */}
       <canvas key={`${generation}-${fallback}`} ref={canvas} className="absolute inset-0 size-full" />
-      {/* Dark luxury scrim: gives the mesh deep mood, rich contrast for lyrics, and 100% diffused ambience */}
-      <div className="absolute inset-0 bg-black/40 pointer-events-none" />
-      <div className="absolute inset-0 bg-radial-[at_50%_50%] from-transparent via-black/25 to-black/60 pointer-events-none" />
+      {/* Apple Music ambient shading: gentle bottom & edge vignette so lyrics and transport buttons pop crisply */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.35)_100%)] pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-[linear-gradient(to_top,rgba(0,0,0,0.45),transparent)] pointer-events-none" />
     </div>
   );
 }
