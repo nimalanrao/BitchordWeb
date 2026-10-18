@@ -748,8 +748,8 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
 
             {/* Lower-Third Track Information & Working 1:1 Controls - Bigger & Bolder */}
             <div className="relative z-30 w-full max-w-[500px] mx-auto px-6 pb-10 pt-4 flex flex-col items-center">
-              {/* Track Title - Bigger */}
-              <h1 className="text-3xl sm:text-4xl md:text-[38px] font-black text-white text-center tracking-tight leading-tight line-clamp-2 drop-shadow-lg">
+              {/* Track Title - Single line, no wrapping */}
+              <h1 className="w-full text-2xl sm:text-3xl md:text-4xl font-black text-white text-center tracking-tight leading-normal whitespace-nowrap truncate drop-shadow-lg px-2">
                 {title}
               </h1>
 
