@@ -47,6 +47,7 @@
   --animate-matching: matching 1.4s ease-in-out infinite alternate;
   --animate-cover-switch: cover-switch 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-lyrics-switch: lyrics-switch 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-tab-fade: tab-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 
   @keyframes cover-switch {
     from {
@@ -84,11 +85,15 @@
   }
 
   @keyframes tab-fade {
-    from {
+    0% {
       opacity: 0;
+      filter: blur(12px);
+      transform: scale(0.985);
     }
-    to {
+    100% {
       opacity: 1;
+      filter: blur(0px);
+      transform: scale(1);
     }
   }
 
@@ -439,3 +444,9 @@
     }
   }
 }
+
+.animate-tab-fade {
+  animation: tab-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: filter, opacity, transform;
+}
+

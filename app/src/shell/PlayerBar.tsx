@@ -13,13 +13,11 @@ import {
   VolumeIcon,
 } from '@/components/icons/Transport';
 import { FavoriteButton } from '@/components/music/FavoriteButton';
-import { LogoMark } from '@/components/icons/LogoMark';
-import { sizedArtwork } from '@/lib/artwork';
 import { useLyrics } from '@/lyrics/useLyrics';
 import { usePlayer } from '@/state/player';
 import { useUi } from '@/state/ui';
 import { Lcd } from './Lcd';
-import { useScrubber } from './useScrubber';
+import { MobileBottomDock } from './MobileBottomDock';
 
 const control = 'grid place-items-center rounded-[6px] disabled:opacity-40';
 // Shuffle and repeat: secondary, and the key colour when on, as Apple's toggles.
@@ -78,90 +76,6 @@ function VolumeControl({ open, onOpen }: { open: boolean; onOpen: () => void }) 
   );
 }
 
-/** Mobile Mini Player: docked/floating at screen bottom, tap anywhere to expand to Full Screen. */
-function MobileMiniPlayer() {
-  const nowPlaying = usePlayer((s) => s.nowPlaying);
-  const playing = usePlayer((s) => s.status === 'playing' || s.status === 'buffering');
-  const hasNext = usePlayer((s) => s.index + 1 < s.queue.length || s.repeat !== 'off' || (s.autoplay && s.index >= 0));
-  const { togglePlay, next } = usePlayer.getState();
-  const setFullScreen = useUi((s) => s.setFullScreen);
-  const { bar } = useScrubber();
-
-  return (
-    <div
-      className="glass-pill group/pill pointer-events-auto relative flex h-(--player-pill-height) w-full items-center justify-between overflow-hidden rounded-[8px] px-3 shadow-glass"
-      role="region"
-      aria-label="Mini Player"
-    >
-      {/* 2px progress bar tracking playback */}
-      <div className="absolute top-0 inset-x-0 h-[2px] bg-quaternary overflow-hidden pointer-events-none">
-        <div
-          ref={bar}
-          className="size-full origin-left scale-x-(--progress) bg-key transition-[background-color] duration-120 ease-in [--progress:0]"
-        />
-      </div>
-
-      {/* Tapping on artwork or title expands to full screen */}
-      <div
-        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 py-1.5 active:opacity-80"
-        onClick={() => setFullScreen(true)}
-        role="button"
-        tabIndex={0}
-        aria-label="Expand player"
-      >
-        <div className="relative size-10 flex-none overflow-hidden rounded-[7px] bg-joe shadow-sm">
-          {nowPlaying?.artworkUrl ? (
-            <img
-              src={sizedArtwork(nowPlaying.artworkUrl, 80)}
-              alt=""
-              className="size-full object-cover"
-            />
-          ) : (
-            <div className="grid size-full place-items-center text-tertiary">
-              <LogoMark size={20} />
-            </div>
-          )}
-        </div>
-
-        <div className="flex min-w-0 flex-1 flex-col justify-center">
-          <span className="truncate type-[600_14px/18px] text-primary">
-            {nowPlaying ? nowPlaying.title : 'Not Playing'}
-          </span>
-          <span className="truncate type-[400_12px/15px] text-secondary">
-            {nowPlaying ? nowPlaying.artist : 'Select a track to play'}
-          </span>
-        </div>
-      </div>
-
-      {/* Play/Pause and Next controls */}
-      <div className="flex flex-none items-center gap-1 pl-2">
-        <button
-          className="grid size-10 place-items-center rounded-full text-primary transition-transform active:scale-90 disabled:opacity-40"
-          disabled={!nowPlaying}
-          aria-label={playing ? 'Pause' : 'Play'}
-          onClick={(e) => {
-            e.stopPropagation();
-            togglePlay();
-          }}
-        >
-          {playing ? <PauseIcon size={28} /> : <PlayIcon size={28} />}
-        </button>
-        <button
-          className="grid size-9 place-items-center rounded-full text-primary transition-transform active:scale-90 disabled:opacity-40"
-          disabled={!nowPlaying || !hasNext}
-          aria-label="Next"
-          onClick={(e) => {
-            e.stopPropagation();
-            next();
-          }}
-        >
-          <ForwardIcon size={24} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /** The floating glass player pill (report §1). */
 export function PlayerBar() {
   const sidePanel = useUi((s) => s.sidePanel);
@@ -181,7 +95,7 @@ export function PlayerBar() {
     // The side panel overlays the page; the pill re-centres in what's left.
     // On mobile (<484px), the sidebar is a drawer, so left-0 is used, floating at bottom-2.5.
     <div
-      className="pointer-events-none absolute right-0 bottom-(--player-bottom-offset) left-(--web-navigation-width) z-[calc(var(--z-web-chrome)-1)] flex justify-center px-5 transition-[padding-inline-end] duration-(--duration-panel) ease-panel data-[panel-open=true]:pe-[calc(var(--side-panel-width)+20px)] max-sm:bottom-2.5 max-sm:left-0 max-sm:px-3"
+      className="pointer-events-none absolute right-0 bottom-(--player-bottom-offset) left-(--web-navigation-width) z-[calc(var(--z-web-chrome)-1)] flex justify-center px-5 transition-[padding-inline-end] duration-(--duration-panel) ease-panel data-[panel-open=true]:pe-[calc(var(--side-panel-width)+20px)] max-sm:fixed max-sm:inset-x-0 max-sm:bottom-2 max-sm:left-0 max-sm:z-[calc(var(--z-web-chrome)+5)] max-sm:px-3"
       data-panel-open={sidePanel !== null}
     >
       {/* Desktop 3-column pill */}
@@ -250,9 +164,9 @@ export function PlayerBar() {
         </div>
       </div>
 
-      {/* Mobile expandable mini player */}
+      {/* Mobile floating bottom dock (mini player + navigation tabs) */}
       <div className="w-full sm:hidden">
-        <MobileMiniPlayer />
+        <MobileBottomDock />
       </div>
     </div>
   );
