@@ -1,26 +1,35 @@
 import {
+  Airplay,
   Cast,
   Check,
   Disc3,
   Download,
   Heart,
+  Image as ImageIcon,
+  Languages,
   ListMusic,
   Maximize,
+  MessageSquare,
   Minimize,
   MoreHorizontal,
   Pause,
   Play,
   Repeat,
   Repeat1,
+  Share2,
   Shuffle,
   SkipBack,
   SkipForward,
+  Speech,
   SquarePen,
+  Star,
+  Trash2,
+  Upload,
   Volume2,
   VolumeX,
   X,
 } from 'lucide-react';
-import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import {
   BackwardIcon,
@@ -39,16 +48,20 @@ import { ExplicitBadge } from '@/components/music/ExplicitBadge';
 import { FavoriteButton } from '@/components/music/FavoriteButton';
 import { albumHref } from '@/components/music/links';
 import { MotionArtwork } from '@/components/music/MotionArtwork';
+import { PingPongVideo } from '@/components/music/PingPongVideo';
 import { VideoSurface } from '@/components/music/VideoSurface';
 import { useTrackMotion } from '@/data/apple/motionArt';
 import { useLikeStatus, useSetLiked, useSignedIn } from '@/data/music/queries';
 import { sizedArtwork } from '@/lib/artwork';
+import { cropImageToSquare, getCustomCover, removeCustomCover, saveCustomCover, type CustomCoverData } from '@/lib/customCovers';
+import { meshPalette, type Rgb } from '@/lib/meshPalette';
 import { useLyrics } from '@/lyrics/useLyrics';
 import { getAudio, usePlayer } from '@/state/player';
 import { useUi } from '@/state/ui';
 import { useHasVideo, useVideo } from '@/state/video';
 import { Credits, PageLink, pageLink } from './Lcd';
-import { LyricsPanel } from './LyricsPanel';
+import { CustomCoverModal } from './CustomCoverModal';
+import { LyricsPanel, ProviderPicker } from './LyricsPanel';
 import { LyricsSettings } from './LyricsSettings';
 import { MeshBackdrop } from './MeshBackdrop';
 import { albumPageFor } from './nowPlayingLinks';
@@ -231,6 +244,203 @@ function WavyScrubber() {
   );
 }
 
+/** Mobile Wesper Theme Scrubber: Pill-shaped progress bar with white thumb knob and elapsed & remaining/total time */
+function MobileWesperScrubber({ onScrubbing }: { onScrubbing?: () => void }) {
+  const barRef = useRef<HTMLDivElement>(null);
+  const knobRef = useRef<HTMLDivElement>(null);
+  const elapsedRef = useRef<HTMLSpanElement>(null);
+  const remainingRef = useRef<HTMLSpanElement>(null);
+  const status = usePlayer((s) => s.status);
+  const deck = usePlayer((s) => s.deck);
+  const durationSec = usePlayer((s) => s.nowPlaying?.durationSec ?? 0);
+  const seek = usePlayer((s) => s.seek);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const draggingRef = useRef<number | null>(null);
+  draggingRef.current = dragging;
+  const [showRemaining, setShowRemaining] = useState(true);
+  const showRemainingRef = useRef(true);
+  showRemainingRef.current = showRemaining;
+
+  useEffect(() => {
+    let frame = 0;
+    const render = () => {
+      const audio = getAudio();
+      const audioDur = audio && Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+      const duration = audioDur || durationSec || 0;
+      const current =
+        draggingRef.current !== null && duration > 0
+          ? draggingRef.current * duration
+          : (audio?.currentTime ?? 0);
+      const fraction = duration > 0 ? Math.min(1, Math.max(0, current / duration)) : 0;
+      const pct = `${(fraction * 100).toFixed(2)}%`;
+
+      if (barRef.current) {
+        barRef.current.style.width = pct;
+      }
+      if (knobRef.current) {
+        knobRef.current.style.left = pct;
+      }
+      if (elapsedRef.current) {
+        elapsedRef.current.textContent = clock(current);
+      }
+      if (remainingRef.current) {
+        if (showRemainingRef.current) {
+          const remaining = Math.max(0, duration - current);
+          remainingRef.current.textContent = `-${clock(remaining)}`;
+        } else {
+          remainingRef.current.textContent = clock(duration);
+        }
+      }
+
+      frame = requestAnimationFrame(render);
+    };
+
+    render();
+    return () => cancelAnimationFrame(frame);
+  }, [status, deck, durationSec]);
+
+  const fractionAt = (event: React.PointerEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+  };
+
+  const handlers = {
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setDragging(fractionAt(e));
+      onScrubbing?.();
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      if (draggingRef.current !== null) {
+        setDragging(fractionAt(e));
+        onScrubbing?.();
+      }
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
+      if (draggingRef.current === null) return;
+      const frac = fractionAt(e);
+      const audio = getAudio();
+      const dur = audio && Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : durationSec;
+      if (dur > 0) seek(frac * dur);
+      setDragging(null);
+      onScrubbing?.();
+    },
+    onPointerCancel: () => {
+      setDragging(null);
+      onScrubbing?.();
+    },
+  };
+
+  return (
+    <div className="w-full select-none">
+      {/* Pill Progress Bar Track */}
+      <div
+        className="w-full h-5 flex items-center cursor-pointer touch-none relative group"
+        {...handlers}
+      >
+        <div className="w-full h-1.5 bg-white/25 rounded-full relative overflow-visible">
+          <div
+            ref={barRef}
+            className="h-full bg-white/90 rounded-full transition-none will-change-[width]"
+            style={{ width: '0%' }}
+          />
+          <div
+            ref={knobRef}
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 size-3.5 rounded-full bg-white shadow-[0_1px_5px_rgba(0,0,0,0.7)] pointer-events-none transition-transform duration-100 ${
+              dragging !== null ? 'scale-125' : 'scale-90 group-hover:scale-100'
+            }`}
+            style={{ left: '0%' }}
+          />
+        </div>
+      </div>
+      {/* Time Row below bar: Left = elapsed, Right = -remaining or total duration */}
+      <div className="flex items-center justify-between -mt-1 text-xs font-semibold tabular-nums text-white/85 select-none">
+        <span ref={elapsedRef}>0:00</span>
+        <button
+          onClick={() => setShowRemaining((prev) => !prev)}
+          className="text-white/85 hover:text-white transition-colors cursor-pointer"
+          title="Toggle remaining / total duration"
+        >
+          <span ref={remainingRef}>-0:00</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Mobile Wesper Volume Slider: 1:1 Apple Music custom pill slider (zero browser default button!) */
+function MobileWesperVolumeSlider({ onInteracting }: { onInteracting?: () => void }) {
+  const volume = usePlayer((s) => s.volume);
+  const muted = usePlayer((s) => s.muted);
+  const setVolume = usePlayer((s) => s.setVolume);
+  const toggleMute = usePlayer((s) => s.toggleMute);
+  const currentVolume = muted ? 0 : volume;
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const updateFromPointer = (clientX: number) => {
+    if (!trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const pct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    setVolume(pct);
+    onInteracting?.();
+  };
+
+  return (
+    <div className="flex items-center gap-3 w-full px-1 select-none">
+      <button
+        onClick={() => {
+          toggleMute();
+          onInteracting?.();
+        }}
+        aria-label="Mute / Min volume"
+        className="text-white/70 hover:text-white transition-colors cursor-pointer p-1"
+      >
+        {muted || volume === 0 ? <VolumeX size={15} strokeWidth={2.2} /> : <Volume2 size={14} strokeWidth={2.2} />}
+      </button>
+      <div
+        ref={trackRef}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setDragging(true);
+          updateFromPointer(e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (dragging) updateFromPointer(e.clientX);
+        }}
+        onPointerUp={(e) => {
+          setDragging(false);
+          updateFromPointer(e.clientX);
+        }}
+        onPointerCancel={() => {
+          setDragging(false);
+          onInteracting?.();
+        }}
+        className="flex-1 h-6 flex items-center cursor-pointer touch-none relative"
+      >
+        {/* Track Pill */}
+        <div className="w-full h-1.5 bg-white/25 rounded-full overflow-hidden relative">
+          <div
+            className="h-full bg-white/85 rounded-full transition-none"
+            style={{ width: `${Math.round(currentVolume * 100)}%` }}
+          />
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          setVolume(1);
+          onInteracting?.();
+        }}
+        aria-label="Max volume"
+        className="text-white/70 hover:text-white transition-colors cursor-pointer p-1"
+      >
+        <Volume2 size={18} strokeWidth={2.2} />
+      </button>
+    </div>
+  );
+}
+
 const transportButton =
   'grid place-items-center rounded-full transition-[background-color,scale] duration-100 ease-in enabled:hover:bg-quinary enabled:active:scale-90 disabled:opacity-40';
 const toggle = `${transportButton} size-9 text-tertiary aria-pressed:text-primary`;
@@ -265,6 +475,52 @@ function Transport() {
         onClick={cycleRepeat}
       >
         {repeat === 'one' ? <RepeatOneIcon size={30} /> : <RepeatIcon size={30} />}
+      </button>
+    </div>
+  );
+}
+
+/** Mobile Wesper Transport: Exactly matches 3 buttons [prev, play/pause, next] from the reference image */
+function MobileWesperTransport() {
+  const hasTrack = usePlayer((s) => s.nowPlaying !== null);
+  const playing = usePlayer((s) => s.status === 'playing' || s.status === 'buffering');
+  const hasNext = usePlayer((s) => s.index + 1 < s.queue.length || s.repeat !== 'off' || (s.autoplay && s.index >= 0));
+  const { togglePlay, next, previous } = usePlayer.getState();
+
+  return (
+    <div className="flex items-center justify-center gap-14 sm:gap-16 w-full py-1">
+      {/* Rewind */}
+      <button
+        className="text-white hover:text-white/80 active:scale-90 transition-transform cursor-pointer disabled:opacity-40"
+        disabled={!hasTrack}
+        aria-label="Previous"
+        onClick={previous}
+      >
+        <SkipBack size={34} fill="currentColor" strokeWidth={0} />
+      </button>
+
+      {/* Play / Pause - Clean flat white icon, no circle background */}
+      <button
+        className="text-white hover:text-white/80 active:scale-95 transition-transform cursor-pointer disabled:opacity-40"
+        disabled={!hasTrack}
+        aria-label={playing ? 'Pause' : 'Play'}
+        onClick={togglePlay}
+      >
+        {playing ? (
+          <Pause size={48} fill="currentColor" strokeWidth={0} />
+        ) : (
+          <Play size={48} fill="currentColor" strokeWidth={0} className="ml-1" />
+        )}
+      </button>
+
+      {/* Fast Forward */}
+      <button
+        className="text-white hover:text-white/80 active:scale-90 transition-transform cursor-pointer disabled:opacity-40"
+        disabled={!hasTrack || !hasNext}
+        aria-label="Next"
+        onClick={next}
+      >
+        <SkipForward size={34} fill="currentColor" strokeWidth={0} />
       </button>
     </div>
   );
@@ -392,6 +648,7 @@ export interface FullScreenPlayerProps {
 export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlayerProps = {}) {
   const nowPlaying = usePlayer((s) => s.nowPlaying);
   const playerTheme = usePlayer((s) => s.playerTheme);
+  const wesperizedAlignment = usePlayer((s) => s.wesperizedAlignment ?? 'left');
   const queue = usePlayer((s) => s.queue);
   const currentIndex = usePlayer((s) => s.index);
   const volume = usePlayer((s) => s.volume);
@@ -432,9 +689,43 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
   // Cinematic theme state
   const [spinning, setSpinning] = useState(false);
   const [showLyricsSettings, setShowLyricsSettings] = useState(false);
+  const [showCoverModal, setShowCoverModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [dominantRgb, setDominantRgb] = useState<Rgb | null>(null);
+  const [customCover, setCustomCover] = useState<CustomCoverData | null>(() =>
+    nowPlaying ? getCustomCover(nowPlaying.videoId) : null
+  );
   const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!nowPlaying) {
+      setCustomCover(null);
+      return;
+    }
+    setCustomCover(getCustomCover(nowPlaying.videoId));
+    const handleCoverUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<{ videoId: string; cover: CustomCoverData | null }>).detail;
+      if (detail && detail.videoId === nowPlaying.videoId) {
+        setCustomCover(detail.cover);
+      }
+    };
+    window.addEventListener('bitchord:cover_updated', handleCoverUpdate);
+    return () => window.removeEventListener('bitchord:cover_updated', handleCoverUpdate);
+  }, [nowPlaying?.videoId]);
+
+  useEffect(() => {
+    const art = customCover?.type === 'image' ? customCover.url : nowPlaying?.artworkUrl;
+    if (!art) return;
+    meshPalette(art)
+      .then((colors) => {
+        if (colors && colors.length > 0 && colors[0]) {
+          // Use primary dominant color from artwork or custom cover
+          setDominantRgb(colors[0]);
+        }
+      })
+      .catch(() => undefined);
+  }, [nowPlaying?.artworkUrl, customCover]);
 
   // Close more menu when clicking outside
   useEffect(() => {
@@ -513,6 +804,60 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
     showToast(`Downloading "${nowPlaying?.title}"...`);
   };
 
+  const handleToggleTranslation = () => {
+    // Find <am-lyrics> in the DOM and trigger translation toggle
+    const amLyrics = document.querySelector('am-lyrics') as (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
+    if (amLyrics?.shadowRoot) {
+      const translateBtn = amLyrics.shadowRoot.querySelector('button[title="Toggle Translation"]') as HTMLButtonElement | null;
+      if (translateBtn) {
+        translateBtn.click();
+        const willBeActive = !translateBtn.classList.contains('active');
+        showToast(willBeActive ? 'Translation enabled' : 'Translation disabled');
+        return;
+      }
+    }
+    showToast('Lyrics translation toggled');
+  };
+
+  const handleToggleRomanization = () => {
+    // Find <am-lyrics> in the DOM and trigger romanization toggle
+    const amLyrics = document.querySelector('am-lyrics') as (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
+    if (amLyrics?.shadowRoot) {
+      const romanizeBtn = amLyrics.shadowRoot.querySelector('button[title="Toggle Romanization"]') as HTMLButtonElement | null;
+      if (romanizeBtn) {
+        romanizeBtn.click();
+        const willBeActive = !romanizeBtn.classList.contains('active');
+        showToast(willBeActive ? 'Romanization enabled' : 'Romanization disabled');
+        return;
+      }
+    }
+    showToast('Lyrics romanization toggled');
+  };
+
+  const handleShareSong = async () => {
+    setShowMoreMenu(false);
+    const shareData = {
+      title: nowPlaying?.title ?? 'Track',
+      text: `Listen to "${nowPlaying?.title}" by ${nowPlaying?.artist} on BitChord+`,
+      url: window.location.href,
+    };
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try {
+        await navigator.share(shareData);
+        showToast('Shared successfully');
+        return;
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      showToast('Song link copied to clipboard');
+    } catch {
+      showToast('Could not copy song link');
+    }
+  };
+
   const handleCast = () => {
     setFullScreen(false);
     navigate('/settings/listen-together');
@@ -525,6 +870,30 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
     picked.current = true;
     setPanel((on) => (on === p ? null : p));
   };
+
+  // Mobile Wesper auto-hide controls after 2.5s when viewing lyrics or queue
+  const [mobileControlsHidden, setMobileControlsHidden] = useState(false);
+  const mobileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetMobileInactivity = useCallback(() => {
+    setMobileControlsHidden(false);
+    if (mobileTimerRef.current) {
+      clearTimeout(mobileTimerRef.current);
+      mobileTimerRef.current = null;
+    }
+    if (panel === 'lyrics' || panel === 'queue') {
+      mobileTimerRef.current = setTimeout(() => {
+        setMobileControlsHidden(true);
+      }, 2500);
+    }
+  }, [panel]);
+
+  useEffect(() => {
+    resetMobileInactivity();
+    return () => {
+      if (mobileTimerRef.current) clearTimeout(mobileTimerRef.current);
+    };
+  }, [panel, resetMobileInactivity]);
 
   useEffect(() => {
     if (video && !picked.current) setPanel(null);
@@ -594,11 +963,16 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
   if (playerTheme === 'cinematic' && !theater) {
     return (
       <div
-        className={`fixed inset-0 z-[calc(var(--z-contextual-menus)-2)] isolate overflow-hidden bg-black text-white select-none ${
+        className={`fixed inset-0 z-[calc(var(--z-contextual-menus)-2)] isolate overflow-hidden text-white select-none transition-colors duration-1000 ${
           isClosing
             ? 'animate-blur-fade-out pointer-events-none'
             : 'animate-enter motion-reduce:[animation-name:fade-in]'
         }`}
+        style={{
+          backgroundColor: dominantRgb
+            ? `rgb(${Math.round(dominantRgb[0] * 0.16)}, ${Math.round(dominantRgb[1] * 0.16)}, ${Math.round(dominantRgb[2] * 0.16)})`
+            : '#0a0a0c',
+        }}
         onAnimationEnd={(e) => {
           if (isClosing && e.target === e.currentTarget) onClosed?.();
         }}
@@ -611,26 +985,102 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
         onPointerDown={wake}
         onKeyDown={wake}
       >
-        {/* 1. Full-Window Ambient Blurred Artwork Background (100% seamless, covers entire screen) */}
+        {/* 1. Ambient Blurred Artwork Background with Dominant Color Fill (Crossfades smoothly on song change) */}
         <div className="absolute inset-0 size-full overflow-hidden pointer-events-none -z-1">
-          {nowPlaying.artworkUrl && (
+          {customCover?.type === 'image' ? (
             <img
-              src={sizedArtwork(nowPlaying.artworkUrl, 300)}
+              key={`ambient-blur-custom-${customCover.url}`}
+              src={customCover.url}
+              alt=""
+              className="absolute inset-0 size-full object-cover object-center blur-[90px] rotate-90 brightness-75 contrast-125 saturate-150 animate-crossfade"
+            />
+          ) : nowPlaying.artworkUrl ? (
+            <img
+              key={`ambient-blur-${nowPlaying.artworkUrl}`}
+              src={sizedArtwork(nowPlaying.artworkUrl, 400)}
               alt=""
               referrerPolicy="no-referrer"
-              className="size-full object-cover object-center scale-150 blur-[80px] brightness-75 contrast-125 saturate-150"
+              className="absolute inset-0 size-full object-cover object-center blur-[90px] rotate-90 brightness-75 contrast-125 saturate-150 animate-crossfade"
             />
+          ) : null}
+          {/* Most used artwork color tint over the right side, darkened for optimal lyric readability */}
+          {dominantRgb ? (
+            <div
+              className="absolute inset-y-0 right-0 w-full md:w-3/5 pointer-events-none transition-all duration-1000 ease-in-out"
+              style={{
+                background: `linear-gradient(to right, transparent 0%, rgba(${dominantRgb[0]}, ${dominantRgb[1]}, ${dominantRgb[2]}, 0.55) 40%, rgba(${Math.round(dominantRgb[0] * 0.4)}, ${Math.round(dominantRgb[1] * 0.4)}, ${Math.round(dominantRgb[2] * 0.4)}, 0.88) 100%)`,
+              }}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-black/40 transition-opacity duration-700" />
           )}
-          <div className="absolute inset-0 bg-black/45" />
+          {/* Deep dark tone overlay ensuring lyrics stay 100% crisp and readable */}
+          <div className="absolute inset-0 bg-black/35 pointer-events-none" />
         </div>
 
-        {/* 2. Left Artwork Canvas (No zoom, full uncropped cover on the left, fading gently into ambient background) */}
-        <div className="absolute inset-0 size-full overflow-hidden pointer-events-none z-0">
-          {nowPlaying.artworkUrl && (
+        {/* 2. Left Artwork Canvas - Desktop only (Fit to screen on the left half) */}
+        <div className="hidden md:block group/canvas absolute inset-y-0 left-0 w-1/2 h-full overflow-hidden pointer-events-none hover:pointer-events-auto z-0">
+          {customCover ? (
             spinning ? (
-              /* Realistic Vinyl Record View */
-              <div className="absolute inset-y-0 left-0 w-full md:w-1/2 flex items-center justify-center p-8">
-                <div className="relative aspect-square w-[min(38vw,calc(100vh-280px),480px)] rounded-full bg-[#111113] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(255,255,255,0.08)] ring-1 ring-white/10 animate-[spin_12s_linear_infinite]">
+              /* Realistic Vinyl Record View with custom cover */
+              <div className="size-full flex items-center justify-center p-8 pb-48 pt-10 -translate-y-8">
+                <div className="relative aspect-square w-[min(38vw,calc(100vh-320px),480px)] rounded-full bg-[#111113] p-3 shadow-[0_25px_70px_rgba(0,0,0,0.9),inset_0_0_20px_rgba(255,255,255,0.08)] ring-1 ring-white/10 animate-[spin_12s_linear_infinite]">
+                  <div className="size-full rounded-full border-[10px] border-[#18181b] p-6 shadow-[inset_0_0_15px_#000]">
+                    <div className="size-full rounded-full border-[8px] border-[#222226] p-6">
+                      <div className="size-full rounded-full border-[6px] border-[#1c1c20] p-6">
+                        <div className="size-full rounded-full border-[4px] border-[#26262b] p-6 flex items-center justify-center">
+                          {/* Center Album Artwork Label */}
+                          <div className="relative size-full rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg">
+                            {customCover.type === 'video' ? (
+                              <PingPongVideo
+                                key={`vinyl-video-${customCover.url}`}
+                                src={customCover.url}
+                                playing={playing}
+                                className="size-full object-cover animate-cover-crossfade"
+                              />
+                            ) : (
+                              <img
+                                key={`vinyl-custom-${customCover.url}`}
+                                src={customCover.url}
+                                alt=""
+                                className="size-full object-cover animate-cover-crossfade"
+                              />
+                            )}
+                            <div className="absolute inset-0 m-auto size-5 rounded-full bg-[#111113] ring-2 ring-white/40 shadow-inner" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    className="absolute inset-0 rounded-full pointer-events-none opacity-25"
+                    style={{
+                      background: 'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.4) 45deg, transparent 90deg, transparent 180deg, rgba(255,255,255,0.4) 225deg, transparent 270deg)',
+                    }}
+                  />
+                </div>
+              </div>
+            ) : customCover.type === 'video' ? (
+              <PingPongVideo
+                key={`custom-video-${customCover.url}`}
+                src={customCover.url}
+                playing={playing}
+                className="size-full object-cover object-center animate-cover-crossfade"
+              />
+            ) : (
+              <img
+                key={`custom-cover-${customCover.url}`}
+                src={customCover.url}
+                alt=""
+                decoding="async"
+                className="size-full object-cover object-center animate-cover-crossfade"
+              />
+            )
+          ) : nowPlaying.artworkUrl && (
+            spinning ? (
+              /* Realistic Vinyl Record View - Shifted up clear of bottom blur */
+              <div className="size-full flex items-center justify-center p-8 pb-48 pt-10 -translate-y-8">
+                <div className="relative aspect-square w-[min(38vw,calc(100vh-320px),480px)] rounded-full bg-[#111113] p-3 shadow-[0_25px_70px_rgba(0,0,0,0.9),inset_0_0_20px_rgba(255,255,255,0.08)] ring-1 ring-white/10 animate-[spin_12s_linear_infinite]">
                   {/* Vinyl Grooves concentric rings */}
                   <div className="size-full rounded-full border-[10px] border-[#18181b] p-6 shadow-[inset_0_0_15px_#000]">
                     <div className="size-full rounded-full border-[8px] border-[#222226] p-6">
@@ -639,10 +1089,11 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                           {/* Center Album Artwork Label */}
                           <div className="relative size-full rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg">
                             <img
+                              key={`vinyl-${nowPlaying.artworkUrl}`}
                               src={sizedArtwork(nowPlaying.artworkUrl, 600)}
                               alt=""
                               referrerPolicy="no-referrer"
-                              className="size-full object-cover"
+                              className="size-full object-cover animate-cover-crossfade"
                             />
                             {/* Spindle hole */}
                             <div className="absolute inset-0 m-auto size-5 rounded-full bg-[#111113] ring-2 ring-white/40 shadow-inner" />
@@ -661,46 +1112,72 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                 </div>
               </div>
             ) : (
-              /* Full uncropped cover on the left without any black bar or gap */
+              /* Fit to screen album cover on the left with ultra-smooth crossfade */
               <img
+                key={`cover-${nowPlaying.artworkUrl}`}
                 src={sizedArtwork(nowPlaying.artworkUrl, 1600)}
                 alt=""
                 referrerPolicy="no-referrer"
                 decoding="async"
-                className="absolute inset-y-0 left-0 h-full w-[60vw] max-md:w-full object-cover object-left md:object-center"
-                style={{
-                  maskImage:
-                    'linear-gradient(to right, black 0%, black 35%, rgba(0,0,0,0.65) 65%, transparent 100%)',
-                  WebkitMaskImage:
-                    'linear-gradient(to right, black 0%, black 35%, rgba(0,0,0,0.65) 65%, transparent 100%)',
-                }}
+                className="size-full object-cover object-center animate-cover-crossfade"
               />
             )
           )}
-          {motion && !spinning && (
+          {!customCover && motion && !spinning && (
             <MotionArtwork
               motion={motion}
-              className="absolute inset-y-0 left-0 h-full w-[60vw] max-md:w-full object-cover object-left md:object-center opacity-90 transition-opacity duration-600"
+              className="size-full object-cover object-center opacity-90 transition-opacity duration-600"
               playing={playing}
             />
           )}
 
-          {/* Right edge smooth darkening dissolve over the lyrics */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent 30% via-black/40 55% to-black/80 pointer-events-none" />
-
-          {/* Top Vignette behind top buttons */}
-          <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/80 via-black/30 to-transparent pointer-events-none" />
-
-          {/* Bottom Vignette with blur and reduced opacity so album cover is clearly visible behind buttons */}
+          {/* Bottom vignette: extended higher (56% height, 48% blur mask) while keeping blur 6px and tinting with theme color */}
           <div
-            className="absolute inset-x-0 bottom-0 h-[65%] backdrop-blur-[24px] pointer-events-none"
+            className="absolute inset-x-0 bottom-0 h-[48%] backdrop-blur-[6px] pointer-events-none"
             style={{
-              maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
+              maskImage: 'linear-gradient(to top, black 0%, black 55%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to top, black 0%, black 55%, transparent 100%)',
             }}
           />
-          <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/75 via-black/45 45% via-black/15 75% to-transparent pointer-events-none" />
+          {/* Theme-colored gradient overlay matching the current song / artwork palette, brought up higher */}
+          {dominantRgb ? (
+            <div
+              className="absolute inset-x-0 bottom-0 h-[56%] pointer-events-none transition-all duration-1000 ease-in-out"
+              style={{
+                background: `linear-gradient(to top, rgba(${Math.round(dominantRgb[0] * 0.28)}, ${Math.round(dominantRgb[1] * 0.28)}, ${Math.round(dominantRgb[2] * 0.28)}, 0.95) 0%, rgba(${Math.round(dominantRgb[0] * 0.35)}, ${Math.round(dominantRgb[1] * 0.35)}, ${Math.round(dominantRgb[2] * 0.35)}, 0.75) 45%, rgba(${dominantRgb[0]}, ${dominantRgb[1]}, ${dominantRgb[2]}, 0.35) 75%, transparent 100%)`,
+              }}
+            />
+          ) : (
+            <div className="absolute inset-x-0 bottom-0 h-[56%] bg-gradient-to-t from-black/90 via-black/60 50% to-transparent pointer-events-none" />
+          )}
+
+          {/* Hover on album artwork: Custom Album Cover button overlay */}
+          <div className="absolute top-8 left-8 z-20 opacity-0 group-hover/canvas:opacity-100 transition-opacity duration-200 pointer-events-none group-hover/canvas:pointer-events-auto">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCoverModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-neutral-950/90 hover:bg-neutral-900 border border-white/20 text-white text-xs font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.7)] ring-1 ring-white/10 transition active:scale-95 cursor-pointer pointer-events-auto"
+              title="Change album cover (Image or Video)"
+              aria-label="Change album cover"
+            >
+              <ImageIcon size={16} />
+              <span>Change Cover</span>
+            </button>
+          </div>
         </div>
+
+        {/* 3. Deep Blur Bridge in the MIDDLE of the screen (Desktop only) */}
+        <div
+          className="hidden md:block absolute inset-y-0 left-1/2 -translate-x-1/2 w-[30vw] min-w-[280px] backdrop-blur-[100px] pointer-events-none z-5"
+          style={{
+            maskImage:
+              'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.85) 30%, black 50%, rgba(0,0,0,0.85) 70%, transparent 100%)',
+            WebkitMaskImage:
+              'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.85) 30%, black 50%, rgba(0,0,0,0.85) 70%, transparent 100%)',
+          }}
+        />
 
         {/* Toast Notification */}
         {toastMessage && (
@@ -710,67 +1187,590 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
           </div>
         )}
 
-        {/* Top-Right Browser Fullscreen Button */}
-        {document.fullscreenEnabled && (
+        {/* Top Header Buttons (More Menu, Vinyl Disc, Queue List, Close) - Desktop only */}
+        <div className="hidden md:flex absolute top-6 left-1/2 -translate-x-1/2 z-40 items-center justify-center gap-3.5" ref={moreMenuRef}>
+          {/* More Actions Menu Button (3 Dots) */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMoreMenu((prev) => !prev)}
+              className={`grid size-11 place-items-center rounded-full transition ${
+                showMoreMenu ? 'bg-white text-black' : 'text-white/80 hover:text-white hover:bg-white/15'
+              }`}
+              title="More Actions"
+              aria-label="More Actions"
+              aria-expanded={showMoreMenu}
+            >
+              <MoreHorizontal size={22} />
+            </button>
+
+            {/* Animated Glassmorphic Popover Menu dropping down from center header */}
+            {showMoreMenu && (
+              <div
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-3 z-50 p-1.5 rounded-[12px] bg-neutral-950/95 backdrop-blur-2xl border border-white/20 shadow-[0_16px_48px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-white/10 flex items-center gap-1 animate-zoom pointer-events-auto"
+                role="menu"
+              >
+                {/* 1. Heart (Favorite) */}
+                <button
+                  onClick={handleToggleFavorite}
+                  className={`grid place-items-center size-9 rounded-[8px] transition active:scale-90 ${
+                    isFavorite
+                      ? 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/30 ring-1 ring-rose-500/40'
+                      : 'text-white/80 hover:text-white hover:bg-white/15'
+                  }`}
+                  title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+                  aria-label="Favorite"
+                  role="menuitem"
+                >
+                  <Heart
+                    size={18}
+                    className={`transition-all duration-200 ${
+                      isFavorite ? 'fill-rose-500 text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'fill-none'
+                    }`}
+                  />
+                </button>
+
+                {/* 2. Add Custom Album Cover */}
+                <button
+                  onClick={() => {
+                    setShowCoverModal(true);
+                    setShowMoreMenu(false);
+                  }}
+                  className={`grid place-items-center size-9 rounded-[8px] transition active:scale-90 ${
+                    customCover
+                      ? 'bg-white/25 text-white ring-1 ring-white/40'
+                      : 'text-white/80 hover:text-white hover:bg-white/15'
+                  }`}
+                  title="Add Custom Album Cover (1:1 Auto-Crop or Video)"
+                  aria-label="Custom Album Cover"
+                  role="menuitem"
+                >
+                  <ImageIcon size={18} />
+                </button>
+
+                {/* 3. Share Song */}
+                <button
+                  onClick={handleShareSong}
+                  className="grid place-items-center size-9 rounded-[8px] text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                  title="Share Song"
+                  aria-label="Share Song"
+                  role="menuitem"
+                >
+                  <Share2 size={18} />
+                </button>
+
+                {/* 4. Lyrics Translation */}
+                <button
+                  onClick={() => {
+                    handleToggleTranslation();
+                    setShowMoreMenu(false);
+                  }}
+                  className="grid place-items-center size-9 rounded-[8px] text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                  title="Toggle Lyrics Translation"
+                  aria-label="Toggle Translation"
+                  role="menuitem"
+                >
+                  <Languages size={18} />
+                </button>
+
+                {/* 5. Lyrics Romanization */}
+                <button
+                  onClick={() => {
+                    handleToggleRomanization();
+                    setShowMoreMenu(false);
+                  }}
+                  className="grid place-items-center size-9 rounded-[8px] text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                  title="Toggle Lyrics Romanization"
+                  aria-label="Toggle Romanization"
+                  role="menuitem"
+                >
+                  <Speech size={18} />
+                </button>
+
+                {/* 6. Lyrics Settings & Providers */}
+                <button
+                  onClick={() => {
+                    setShowLyricsSettings(true);
+                    setShowMoreMenu(false);
+                  }}
+                  className="grid place-items-center size-9 rounded-[8px] text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                  title="Lyrics Settings & Providers"
+                  aria-label="Lyrics Settings"
+                  role="menuitem"
+                >
+                  <SquarePen size={18} />
+                </button>
+
+                {/* 7. Download */}
+                <button
+                  onClick={() => {
+                    handleDownload();
+                    setShowMoreMenu(false);
+                  }}
+                  className="grid place-items-center size-9 rounded-[8px] text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                  title="Download Track"
+                  aria-label="Download"
+                  role="menuitem"
+                >
+                  <Download size={18} />
+                </button>
+
+                {/* 8. Cast / Airplay (Listen Together) */}
+                <button
+                  onClick={() => {
+                    handleCast();
+                    setShowMoreMenu(false);
+                  }}
+                  className="grid place-items-center size-9 rounded-[8px] text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                  title="Listen Together"
+                  aria-label="Listen Together"
+                  role="menuitem"
+                >
+                  <Cast size={18} />
+                </button>
+
+                {/* 9. Volume Speaker + Inline Slider */}
+                <div className="flex items-center gap-2 px-2.5 py-1 bg-white/5 rounded-[8px] border border-white/10">
+                  <button
+                    onClick={toggleMute}
+                    className="text-white/80 hover:text-white transition active:scale-90"
+                    title={muted ? 'Unmute' : 'Mute'}
+                    aria-label="Volume"
+                  >
+                    {muted || volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                  </button>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={muted ? 0 : volume}
+                    onChange={(e) => setVolume(Number(e.target.value))}
+                    className="w-20 h-1 accent-white cursor-pointer"
+                    aria-label="Volume Slider"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
-            className="absolute top-4 right-5 z-40 grid size-10 place-items-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition"
-            aria-label={browserFullScreen ? 'Exit full screen' : 'Enter full screen'}
-            onClick={toggleBrowserFullScreen}
+            onClick={() => {
+              setSpinning((s) => !s);
+              showToast(spinning ? 'Vinyl Canvas Off' : 'Vinyl Canvas On');
+            }}
+            className={`grid size-11 place-items-center rounded-full transition ${
+              spinning ? 'bg-white text-black' : 'text-white/80 hover:text-white hover:bg-white/15'
+            }`}
+            title="Toggle Vinyl Canvas"
+            aria-label="Toggle Vinyl Canvas"
           >
-            {browserFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
+            <Disc3 size={22} className={spinning ? 'animate-spin' : ''} />
           </button>
-        )}
+          <button
+            onClick={() => togglePanel('queue')}
+            className={`grid size-11 place-items-center rounded-full transition ${
+              showQueue ? 'bg-white text-black' : 'text-white/80 hover:text-white hover:bg-white/15'
+            }`}
+            title="Up Next Queue"
+            aria-label="Up Next Queue"
+          >
+            <ListMusic size={22} />
+          </button>
 
-        {/* Main 2-Column Split Layout */}
-        <div className="relative z-10 size-full flex flex-col md:flex-row items-stretch">
+          {/* Browser Fullscreen Button */}
+          {document.fullscreenEnabled && (
+            <button
+              className="grid size-11 place-items-center rounded-full text-white/80 hover:text-white hover:bg-white/15 transition"
+              aria-label={browserFullScreen ? 'Exit full screen' : 'Enter full screen'}
+              title={browserFullScreen ? 'Exit full screen' : 'Enter full screen'}
+              onClick={toggleBrowserFullScreen}
+            >
+              {browserFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
+            </button>
+          )}
+
+          <button
+            ref={close}
+            onClick={() => setFullScreen(false)}
+            className="grid size-11 place-items-center rounded-full text-white/80 hover:text-white hover:bg-white/15 transition"
+            title="Close"
+            aria-label="Close"
+          >
+            <X size={22} />
+          </button>
+        </div>
+
+        {/* =========================================================================
+            MOBILE-ONLY WESPER THEME LAYOUT (1:1 Apple Music iOS now-playing layout)
+           ========================================================================= */}
+        <div
+          className="flex md:hidden relative z-10 size-full flex-col justify-between px-6 pt-3 pb-6 overflow-hidden select-none"
+          onPointerDown={resetMobileInactivity}
+          onTouchStart={resetMobileInactivity}
+        >
+          {panel === 'lyrics' || panel === 'queue' ? (
+            /* ================= EXPANDED LYRICS / QUEUE MODE ================= */
+            <>
+              {/* Top Pill Handle & Mini Header */}
+              <div className="flex-none flex flex-col z-30">
+                <div className="flex items-center justify-center pt-1 pb-1">
+                  <button
+                    onClick={() => setFullScreen(false)}
+                    className="w-10 h-1.5 rounded-full bg-white/40 active:bg-white/70 transition-colors cursor-pointer"
+                    aria-label="Dismiss Player"
+                    title="Dismiss"
+                  />
+                </div>
+
+                {/* Compact Top Header: Mini Cover, Song Name, Artist, and Star/Return */}
+                <div className="flex items-center justify-between gap-3 py-1.5 px-0.5 mt-0.5">
+                  <button
+                    onClick={() => setPanel(null)}
+                    className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer group active:opacity-80 transition-opacity"
+                    title="Tap to return to album cover"
+                  >
+                    <div className="size-11 rounded-[10px] overflow-hidden shadow-lg ring-1 ring-white/15 flex-none bg-neutral-900">
+                      {customCover?.type === 'video' ? (
+                        <PingPongVideo
+                          key={`mobile-video-mini-${customCover.url}`}
+                          src={customCover.url}
+                          playing={playing}
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={customCover ? customCover.url : nowPlaying.artworkUrl ? sizedArtwork(nowPlaying.artworkUrl, 160) : ''}
+                          alt=""
+                          referrerPolicy="no-referrer"
+                          className="size-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 flex flex-col justify-center">
+                      <span className="text-[15px] font-bold text-white tracking-tight truncate leading-tight">
+                        {title}
+                      </span>
+                      <span className="text-[13px] font-medium text-white/70 truncate mt-0.5">
+                        {artist}
+                      </span>
+                    </div>
+                  </button>
+
+                  <div className="flex items-center gap-2 flex-none">
+                    <button
+                      onClick={handleToggleFavorite}
+                      className={`grid place-items-center size-8 rounded-full transition-transform active:scale-90 cursor-pointer ${
+                        isFavorite ? 'text-amber-300' : 'text-white/80 hover:text-white'
+                      }`}
+                      aria-label={isFavorite ? 'Unfavorite' : 'Favorite'}
+                      title={isFavorite ? 'Unfavorite' : 'Favorite'}
+                    >
+                      <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} strokeWidth={1.8} />
+                    </button>
+                    <button
+                      onClick={() => setPanel(null)}
+                      className="grid place-items-center size-8 rounded-full bg-white/15 text-white hover:bg-white/25 active:scale-90 transition-transform cursor-pointer"
+                      aria-label="Return to album cover"
+                      title="Return to album cover"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle Scrolling Area: Synced Lyrics or Queue */}
+              <div
+                className={`relative z-10 w-full flex-1 min-h-0 overflow-hidden transition-all duration-300 ${
+                  mobileControlsHidden ? 'pb-4' : 'pb-44'
+                }`}
+                onClick={resetMobileInactivity}
+                onTouchStart={resetMobileInactivity}
+              >
+                {panel === 'queue' ? (
+                  <div className="size-full overflow-hidden animate-fade-in [mask-image:linear-gradient(180deg,#000_calc(100%-40px),transparent)]">
+                    <UpNext />
+                  </div>
+                ) : (
+                  <div className="size-full overflow-hidden animate-fade-in flex flex-col justify-center">
+                    <LyricsPanel variant="full" showPicker={false} />
+                  </div>
+                )}
+              </div>
+
+              {/* Floating Bottom Control Panel with 2.5s Inactivity Auto-Hide */}
+              <div
+                onClick={resetMobileInactivity}
+                onTouchStart={resetMobileInactivity}
+                className={`absolute inset-x-0 bottom-0 z-20 px-6 pb-6 pt-8 flex flex-col gap-4 max-w-[380px] mx-auto bg-gradient-to-t from-black/85 via-black/50 to-transparent transition-all duration-300 ease-out ${
+                  mobileControlsHidden
+                    ? 'opacity-0 translate-y-8 pointer-events-none'
+                    : 'opacity-100 translate-y-0 pointer-events-auto'
+                }`}
+              >
+                {/* Scrubber */}
+                <div className="w-full">
+                  <MobileWesperScrubber onScrubbing={resetMobileInactivity} />
+                </div>
+
+                {/* Transport Controls */}
+                <div className="w-full pt-1">
+                  <MobileWesperTransport />
+                </div>
+
+                {/* Volume Slider - 1:1 Apple Music Pill Slider, No Thumb Button */}
+                <MobileWesperVolumeSlider onInteracting={resetMobileInactivity} />
+
+                {/* Bottom Navigation Toolbar */}
+                <div className="flex items-center justify-around w-full pt-1 text-white/70">
+                  <button
+                    onClick={() => togglePanel('lyrics')}
+                    className={`grid place-items-center size-10 rounded-full transition-colors cursor-pointer ${
+                      panel === 'lyrics' ? 'text-white bg-white/20' : 'text-white/60 hover:text-white'
+                    }`}
+                    aria-label="Lyrics"
+                    title="Lyrics"
+                  >
+                    <MessageSquare size={21} strokeWidth={2} />
+                  </button>
+
+                  <button
+                    onClick={handleCast}
+                    className="grid place-items-center size-10 rounded-full text-white/60 hover:text-white transition-colors cursor-pointer"
+                    aria-label="AirPlay & Listen Together"
+                    title="AirPlay & Listen Together"
+                  >
+                    <Airplay size={22} strokeWidth={2} />
+                  </button>
+
+                  <button
+                    onClick={() => togglePanel('queue')}
+                    className={`grid place-items-center size-10 rounded-full transition-colors cursor-pointer ${
+                      panel === 'queue' ? 'text-white bg-white/20' : 'text-white/60 hover:text-white'
+                    }`}
+                    aria-label="Up Next"
+                    title="Up Next"
+                  >
+                    <ListMusic size={22} strokeWidth={2} />
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* ================= DEFAULT ALBUM ART COVER MODE ================= */
+            <>
+              {/* Top Pill Handle / Grabber Indicator */}
+              <div className="flex items-center justify-center pt-1 pb-2">
+                <button
+                  onClick={() => setFullScreen(false)}
+                  className="w-10 h-1.5 rounded-full bg-white/40 active:bg-white/70 transition-colors cursor-pointer"
+                  aria-label="Dismiss Player"
+                  title="Dismiss"
+                />
+              </div>
+
+              {/* Center Album Art: Rounded square with shadow, centered in available space */}
+              <div className="flex-1 min-h-0 flex items-center justify-center py-2">
+                <div className="relative aspect-square w-[min(78vw,calc(100vh-420px))] max-w-[340px] rounded-[18px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.65)] ring-1 ring-white/10">
+                  {customCover?.type === 'video' ? (
+                    <PingPongVideo
+                      key={`mobile-video-${customCover.url}`}
+                      src={customCover.url}
+                      playing={playing}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={customCover ? customCover.url : nowPlaying.artworkUrl ? sizedArtwork(nowPlaying.artworkUrl, 800) : ''}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      className="size-full object-cover"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Lower Controls Stack matching exact layout */}
+              <div className="flex flex-col gap-5 w-full max-w-[380px] mx-auto pb-2">
+                {/* 1. Track Info Row: Title & Artist on left, Star & More button on right */}
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <div className="min-w-0 flex-1 flex flex-col">
+                    <h1 className="text-[21px] font-bold text-white tracking-tight leading-snug truncate">
+                      {title}
+                    </h1>
+                    <div className="text-[16px] font-medium text-white/75 truncate mt-0.5">
+                      {artist && (
+                        <Credits
+                          videoId={videoId}
+                          line={artist}
+                          artists={track?.artists ?? []}
+                          className="cursor-pointer hover:underline inline"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Star (Favorite) and More (3 dots) buttons */}
+                  <div className="flex items-center gap-2.5 flex-none">
+                    {/* Star Favorite Button */}
+                    <button
+                      onClick={handleToggleFavorite}
+                      className={`grid place-items-center size-9 rounded-full transition-transform active:scale-90 cursor-pointer ${
+                        isFavorite ? 'text-amber-300' : 'text-white/80 hover:text-white'
+                      }`}
+                      aria-label={isFavorite ? 'Unfavorite' : 'Favorite'}
+                      title={isFavorite ? 'Unfavorite' : 'Favorite'}
+                    >
+                      <Star size={21} fill={isFavorite ? 'currentColor' : 'none'} strokeWidth={1.8} />
+                    </button>
+
+                    {/* More Options Button */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowMoreMenu((prev) => !prev)}
+                        className="grid place-items-center size-9 rounded-full bg-white/15 text-white hover:bg-white/25 active:scale-90 transition-transform cursor-pointer"
+                        aria-label="More Options"
+                        title="More Options"
+                      >
+                        <MoreHorizontal size={19} />
+                      </button>
+
+                      {/* Mobile Popover Menu */}
+                      {showMoreMenu && (
+                        <div className="absolute bottom-full right-0 mb-3 z-50 p-2 rounded-[16px] bg-neutral-950/95 backdrop-blur-2xl border border-white/20 shadow-2xl flex flex-col gap-1 min-w-[200px] text-sm">
+                          <button
+                            onClick={() => {
+                              setShowCoverModal(true);
+                              setShowMoreMenu(false);
+                            }}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] hover:bg-white/10 text-start text-white cursor-pointer"
+                          >
+                            <ImageIcon size={16} />
+                            <span>Change Cover</span>
+                          </button>
+                          <button
+                            onClick={handleShareSong}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] hover:bg-white/10 text-start text-white cursor-pointer"
+                          >
+                            <Share2 size={16} />
+                            <span>Share Song</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleDownload();
+                              setShowMoreMenu(false);
+                            }}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] hover:bg-white/10 text-start text-white cursor-pointer"
+                          >
+                            <Download size={16} />
+                            <span>Download</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowLyricsSettings(true);
+                              setShowMoreMenu(false);
+                            }}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] hover:bg-white/10 text-start text-white cursor-pointer"
+                          >
+                            <SquarePen size={16} />
+                            <span>Lyrics Settings</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Scrubber */}
+                <div className="w-full">
+                  <MobileWesperScrubber />
+                </div>
+
+                {/* 3. Transport Controls: [Prev, Flat Play/Pause, Next] */}
+                <div className="w-full pt-1">
+                  <MobileWesperTransport />
+                </div>
+
+                {/* 4. Volume Slider Row - Sleek Pill, No Thumb Button */}
+                <MobileWesperVolumeSlider />
+
+                {/* 5. Bottom Navigation Toolbar: [Lyrics icon, Airplay icon, Queue list icon] */}
+                <div className="flex items-center justify-around w-full pt-2 text-white/70">
+                  {/* Lyrics Toggle */}
+                  <button
+                    onClick={() => togglePanel('lyrics')}
+                    className={`grid place-items-center size-10 rounded-full transition-colors cursor-pointer ${
+                      panel === 'lyrics' ? 'text-white bg-white/20' : 'text-white/60 hover:text-white'
+                    }`}
+                    aria-label="Lyrics"
+                    title="Lyrics"
+                  >
+                    <MessageSquare size={21} strokeWidth={2} />
+                  </button>
+
+                  {/* Airplay / Listen Together */}
+                  <button
+                    onClick={handleCast}
+                    className="grid place-items-center size-10 rounded-full text-white/60 hover:text-white transition-colors cursor-pointer"
+                    aria-label="AirPlay & Listen Together"
+                    title="AirPlay & Listen Together"
+                  >
+                    <Airplay size={22} strokeWidth={2} />
+                  </button>
+
+                  {/* Up Next Queue */}
+                  <button
+                    onClick={() => togglePanel('queue')}
+                    className={`grid place-items-center size-10 rounded-full transition-colors cursor-pointer ${
+                      panel === 'queue' ? 'text-white bg-white/20' : 'text-white/60 hover:text-white'
+                    }`}
+                    aria-label="Up Next"
+                    title="Up Next"
+                  >
+                    <ListMusic size={22} strokeWidth={2} />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* =========================================================================
+            DESKTOP-ONLY 2-COLUMN SPLIT LAYOUT (Kept identical for desktop screen sizes)
+           ========================================================================= */}
+        <div className="hidden md:flex relative z-10 size-full flex-row items-stretch">
           {/* ================= LEFT COLUMN: Header & Player Controls ================= */}
-          <div className="relative w-full md:w-1/2 h-full flex flex-col justify-between">
-            {/* Top Header Buttons (Vinyl Disc, Queue List, Close) - Bigger */}
-            <div className="relative z-30 flex items-center justify-end gap-3.5 px-8 pt-6">
-              <button
-                onClick={() => {
-                  setSpinning((s) => !s);
-                  showToast(spinning ? 'Vinyl Canvas Off' : 'Vinyl Canvas On');
-                }}
-                className={`grid size-11 place-items-center rounded-full transition ${
-                  spinning ? 'bg-white text-black' : 'text-white/80 hover:text-white hover:bg-white/15'
-                }`}
-                title="Toggle Vinyl Canvas"
-                aria-label="Toggle Vinyl Canvas"
-              >
-                <Disc3 size={22} className={spinning ? 'animate-spin' : ''} />
-              </button>
-              <button
-                onClick={() => togglePanel('queue')}
-                className={`grid size-11 place-items-center rounded-full transition ${
-                  showQueue ? 'bg-white text-black' : 'text-white/80 hover:text-white hover:bg-white/15'
-                }`}
-                title="Up Next Queue"
-                aria-label="Up Next Queue"
-              >
-                <ListMusic size={22} />
-              </button>
-              <button
-                ref={close}
-                onClick={() => setFullScreen(false)}
-                className="grid size-11 place-items-center rounded-full text-white/80 hover:text-white hover:bg-white/15 transition"
-                title="Close"
-                aria-label="Close"
-              >
-                <X size={22} />
-              </button>
-            </div>
+          <div className="relative w-1/2 h-full flex flex-col justify-end">
 
-            {/* Lower-Third Track Information & Working 1:1 Controls - Bigger & Bolder */}
-            <div className="relative z-30 w-full max-w-[500px] mx-auto px-6 pb-10 pt-4 flex flex-col items-center">
-              {/* Track Title - Single line, no wrapping */}
-              <h1 className="w-full text-2xl sm:text-3xl md:text-4xl font-black text-white text-center tracking-tight leading-normal whitespace-nowrap truncate drop-shadow-lg px-2">
+            {/* Lower-Third Track Information & Working 1:1 Controls - Left-Aligned or Centered per user setting */}
+            <div
+              className={`relative z-30 w-full max-w-[500px] px-8 sm:px-12 pb-10 pt-4 flex flex-col transition-all duration-300 ${
+                wesperizedAlignment === 'center' ? 'items-center mx-auto text-center' : 'items-start text-left'
+              }`}
+            >
+              {/* Track Title - Full title displayed without ellipsis (...) */}
+              <h1
+                className={`w-full text-xl sm:text-2xl md:text-3xl lg:text-[34px] font-black text-white tracking-tight leading-snug drop-shadow-lg break-words ${
+                  wesperizedAlignment === 'center' ? 'text-center' : 'text-left'
+                }`}
+              >
                 {title}
               </h1>
 
-              {/* Artist - Bigger */}
-              <div className="text-sm sm:text-base md:text-[17px] font-bold text-white/90 text-center tracking-wider uppercase mt-2 drop-shadow truncate max-w-[460px]">
-                {artist}
+              {/* Artist - Clickable credits */}
+              <div
+                className={`text-sm sm:text-base md:text-[17px] font-bold text-white/90 tracking-wider uppercase mt-2 drop-shadow break-words max-w-full ${
+                  wesperizedAlignment === 'center' ? 'text-center' : 'text-left'
+                }`}
+              >
+                {artist && (
+                  <Credits
+                    videoId={videoId}
+                    line={artist}
+                    artists={track?.artists ?? []}
+                    className="cursor-pointer hover:underline hover:text-white transition-colors duration-150 inline"
+                  />
+                )}
               </div>
 
               {/* Actual Audio Quality & Codec Format Badge */}
@@ -780,22 +1780,18 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                 let codec = 'OPUS';
                 let bitrate = '160 KBPS';
                 let sampleRate = '48 KHZ';
-                let bitDepth = '16-BIT';
 
                 if (info) {
                   const upper = info.toUpperCase();
                   if (upper.includes('OPUS')) {
                     codec = 'OPUS';
                     sampleRate = '48 KHZ';
-                    bitDepth = '16-BIT';
                   } else if (upper.includes('AAC') || upper.includes('MP4A')) {
                     codec = 'AAC';
                     sampleRate = '44.1 KHZ';
-                    bitDepth = '16-BIT';
                   } else if (upper.includes('FLAC')) {
                     codec = 'FLAC';
                     sampleRate = '48 KHZ';
-                    bitDepth = '24-BIT';
                   }
 
                   const matchBitrate = info.match(/(\d+)\s*kbps/i);
@@ -805,135 +1801,22 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                 }
 
                 return (
-                  <div className="flex items-center justify-center gap-2 mt-2 text-xs sm:text-[13px] font-bold tracking-widest text-white/60 uppercase select-none">
-                    <svg className="size-3.5 fill-current opacity-80" viewBox="0 0 24 24">
-                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.85.94-2.94-1 .04-2.18.66-2.88 1.48-.56.64-1.05 1.74-.92 2.81 1.11.09 2.23-.58 2.86-1.35z" />
-                    </svg>
-                    <span>{bitDepth} · {sampleRate} · {codec} · {bitrate}</span>
+                  <div
+                    className={`flex items-center mt-2 text-xs sm:text-[13px] font-bold tracking-widest text-white/60 uppercase select-none ${
+                      wesperizedAlignment === 'center' ? 'justify-center' : 'justify-start'
+                    }`}
+                  >
+                    <span>{sampleRate} · {codec} · {bitrate}</span>
                   </div>
                 );
               })()}
 
-              {/* Utility Menu Trigger & Popover Menu */}
-              <div className="relative mt-5 mb-2 flex items-center justify-center" ref={moreMenuRef}>
-                <button
-                  onClick={() => setShowMoreMenu((prev) => !prev)}
-                  className={`grid place-items-center size-12 rounded-full border transition-all duration-200 active:scale-90 ${
-                    showMoreMenu
-                      ? 'border-white bg-white text-black shadow-lg shadow-white/20'
-                      : 'border-white/20 bg-white/10 text-white/90 hover:text-white hover:bg-white/20 hover:border-white/40'
-                  }`}
-                  title="Player Actions & Menu"
-                  aria-label="More options"
-                  aria-expanded={showMoreMenu}
-                >
-                  <MoreHorizontal size={26} />
-                </button>
-
-                {/* Animated Glassmorphic Popover Menu */}
-                {showMoreMenu && (
-                  <div
-                    className="absolute bottom-full mb-3 z-50 p-2.5 rounded-2xl bg-neutral-950/90 backdrop-blur-2xl border border-white/15 shadow-2xl flex items-center gap-3 animate-zoom pointer-events-auto"
-                    role="menu"
-                  >
-                    {/* 1. Heart (Favorite) */}
-                    <button
-                      onClick={handleToggleFavorite}
-                      className="grid place-items-center size-10 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
-                      title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-                      aria-label="Favorite"
-                      role="menuitem"
-                    >
-                      <Heart size={20} className={isFavorite ? 'fill-red-500 text-red-500' : ''} />
-                    </button>
-
-                    {/* 2. Lyrics Source / Settings */}
-                    <button
-                      onClick={() => {
-                        setShowLyricsSettings(true);
-                        setShowMoreMenu(false);
-                      }}
-                      className="grid place-items-center size-10 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
-                      title="Lyrics Settings & Providers"
-                      aria-label="Lyrics Settings"
-                      role="menuitem"
-                    >
-                      <SquarePen size={20} />
-                    </button>
-
-                    {/* 3. Download */}
-                    <button
-                      onClick={() => {
-                        handleDownload();
-                        setShowMoreMenu(false);
-                      }}
-                      className="grid place-items-center size-10 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
-                      title="Download Track"
-                      aria-label="Download"
-                      role="menuitem"
-                    >
-                      <Download size={20} />
-                    </button>
-
-                    {/* 4. Cast / Airplay (Listen Together) */}
-                    <button
-                      onClick={() => {
-                        handleCast();
-                        setShowMoreMenu(false);
-                      }}
-                      className="grid place-items-center size-10 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
-                      title="Listen Together"
-                      aria-label="Listen Together"
-                      role="menuitem"
-                    >
-                      <Cast size={20} />
-                    </button>
-
-                    {/* 5. Volume Speaker + Inline Slider */}
-                    <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-xl border border-white/10">
-                      <button
-                        onClick={toggleMute}
-                        className="text-white/80 hover:text-white transition active:scale-90"
-                        title={muted ? 'Unmute' : 'Mute'}
-                        aria-label="Volume"
-                      >
-                        {muted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                      </button>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={muted ? 0 : volume}
-                        onChange={(e) => setVolume(Number(e.target.value))}
-                        className="w-20 h-1 accent-white cursor-pointer"
-                        aria-label="Volume Slider"
-                      />
-                    </div>
-
-                    {/* 6. Up Next / Queue Toggle */}
-                    <button
-                      onClick={() => {
-                        togglePanel('queue');
-                        setShowMoreMenu(false);
-                      }}
-                      className={`grid place-items-center size-10 rounded-xl transition active:scale-90 ${
-                        showQueue ? 'text-white bg-white/25' : 'text-white/80 hover:text-white hover:bg-white/15'
-                      }`}
-                      title="Toggle Queue"
-                      aria-label="Toggle Queue"
-                      role="menuitem"
-                    >
-                      <ListMusic size={20} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* UP NEXT Badge - Bigger */}
+              {/* UP NEXT Badge */}
               <button
                 onClick={() => nextTrack && usePlayer.getState().next()}
-                className={`flex flex-col items-center justify-center mt-2.5 group text-center max-w-[380px] mx-auto select-none transition-transform active:scale-95 ${
+                className={`flex flex-col justify-center mt-2.5 group max-w-[380px] select-none transition-transform active:scale-95 ${
+                  wesperizedAlignment === 'center' ? 'items-center text-center' : 'items-start text-left'
+                } ${
                   nextTrack ? 'cursor-pointer' : 'cursor-default'
                 }`}
               >
@@ -948,24 +1831,26 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
               </button>
 
               {/* Simple Clean Line Bar Scrubber */}
-              <div className="w-full max-w-[440px] mx-auto mt-4 px-1">
+              <div className="w-full max-w-[440px] mt-4">
                 <Scrubber />
               </div>
 
               {/* 1:1 Transport Controls with Solid White Play Button */}
-              <CinematicTransport />
+              <div className="w-full max-w-[440px]">
+                <CinematicTransport />
+              </div>
             </div>
           </div>
 
-          {/* ================= RIGHT COLUMN: Synced Lyrics or Up Next ================= */}
-          <div className="relative w-full md:w-1/2 h-full flex flex-col justify-center px-6 md:px-12 py-8 overflow-hidden">
+          {/* ================= RIGHT COLUMN: Synced Lyrics or Up Next (ON TOP OF THE BLUR) ================= */}
+          <div className="relative z-30 w-1/2 h-full flex flex-col justify-center px-6 md:px-12 py-8 overflow-hidden pointer-events-auto">
             {showQueue ? (
               <div className="size-full overflow-hidden animate-fade-in [mask-image:linear-gradient(180deg,#000_calc(100%-80px),transparent)]">
                 <UpNext />
               </div>
             ) : (
               <div className="size-full overflow-hidden animate-fade-in flex flex-col justify-center">
-                <LyricsPanel variant="full" />
+                <LyricsPanel variant="full" showPicker={false} />
               </div>
             )}
           </div>
@@ -976,6 +1861,21 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
           <Suspense fallback={null}>
             <LyricsSettings onClose={() => setShowLyricsSettings(false)} />
           </Suspense>
+        )}
+
+        {/* Custom Album Cover Modal (1:1 Square Auto-Crop or Video) */}
+        {showCoverModal && (
+          <CustomCoverModal
+            videoId={nowPlaying.videoId}
+            trackTitle={nowPlaying.title}
+            artistName={nowPlaying.artist}
+            defaultArtworkUrl={nowPlaying.artworkUrl ? sizedArtwork(nowPlaying.artworkUrl, 800) : null}
+            onClose={() => setShowCoverModal(false)}
+            onCoverChange={(cover) => {
+              setCustomCover(cover);
+              showToast(cover ? 'Custom album cover applied' : 'Custom album cover removed');
+            }}
+          />
         )}
       </div>
     );
@@ -1006,10 +1906,17 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
       onKeyDown={wake}
       style={theater && playing && idle ? { cursor: 'none' } : undefined}
     >
-      <MeshBackdrop artworkUrl={nowPlaying.artworkUrl} playing={playing} />
+      <MeshBackdrop artworkUrl={customCover?.type === 'image' ? customCover.url : nowPlaying.artworkUrl} playing={playing} />
       {theater && (
         <div className="absolute inset-0 animate-fade-in bg-black">
           <VideoSurface fit="contain" className="size-full" />
+        </div>
+      )}
+
+      {toastMessage && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/20 text-white text-xs font-semibold shadow-2xl animate-fade-in flex items-center gap-2">
+          <Check size={14} className="text-emerald-400" />
+          <span>{toastMessage}</span>
         </div>
       )}
 
@@ -1045,41 +1952,89 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
           aria-label="Player"
         >
           <div
-            className={`relative w-(--art) rounded-[10px] transition-[scale] duration-450 ease-[cubic-bezier(0.34,1.3,0.64,1)] motion-reduce:transition-none${
+            className={`group/cover relative w-(--art) rounded-[10px] transition-[scale] duration-450 ease-[cubic-bezier(0.34,1.3,0.64,1)] motion-reduce:transition-none${
               video ? ' aspect-video overflow-hidden bg-black' : ' aspect-square'
             }${playing ? '' : ' scale-92'}${column ? ' max-md:hidden' : ' max-md:animate-cover-switch'}${theater ? ' hidden' : ''}`}
           >
-            {nowPlaying.artworkUrl && (
+            {customCover ? (
+              customCover.type === 'video' ? (
+                <PingPongVideo
+                  key={`classic-custom-video-${customCover.url}`}
+                  src={customCover.url}
+                  playing={playing}
+                  className="absolute inset-0 size-full rounded-[inherit] object-cover"
+                />
+              ) : (
+                <>
+                  <img
+                    key={`classic-custom-glow-${customCover.url}`}
+                    className={`${artworkLayer} -z-1 translate-y-2 scale-96 blur-[20px] saturate-200 data-loaded:opacity-40 rounded-[inherit]`}
+                    src={customCover.url}
+                    alt=""
+                    decoding="async"
+                    onLoad={(e) => e.currentTarget.setAttribute('data-loaded', '')}
+                  />
+                  <img
+                    key={`classic-custom-img-${customCover.url}`}
+                    className={`${artworkLayer} bg-[#ffffff12] shadow-[0_4px_10px_#0000001a] data-loaded:opacity-100 rounded-[inherit] object-cover`}
+                    src={customCover.url}
+                    alt=""
+                    decoding="async"
+                    onLoad={(e) => e.currentTarget.setAttribute('data-loaded', '')}
+                  />
+                </>
+              )
+            ) : (
               <>
-                <img
-                  key={`glow-${nowPlaying.artworkUrl}`}
-                  className={`${artworkLayer} -z-1 translate-y-2 scale-96 blur-[20px] saturate-200 data-loaded:opacity-40`}
-                  src={sizedArtwork(nowPlaying.artworkUrl, 60)}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  decoding="async"
-                  onLoad={(e) => e.currentTarget.setAttribute('data-loaded', '')}
-                />
-                <img
-                  key={nowPlaying.artworkUrl}
-                  className={`${artworkLayer} bg-[#ffffff12] shadow-[0_4px_10px_#0000001a] data-loaded:opacity-100`}
-                  src={sizedArtwork(nowPlaying.artworkUrl, 600)}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  decoding="async"
-                  onLoad={(e) => e.currentTarget.setAttribute('data-loaded', '')}
-                />
+                {nowPlaying.artworkUrl && (
+                  <>
+                    <img
+                      key={`glow-${nowPlaying.artworkUrl}`}
+                      className={`${artworkLayer} -z-1 translate-y-2 scale-96 blur-[20px] saturate-200 data-loaded:opacity-40`}
+                      src={sizedArtwork(nowPlaying.artworkUrl, 60)}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      decoding="async"
+                      onLoad={(e) => e.currentTarget.setAttribute('data-loaded', '')}
+                    />
+                    <img
+                      key={nowPlaying.artworkUrl}
+                      className={`${artworkLayer} bg-[#ffffff12] shadow-[0_4px_10px_#0000001a] data-loaded:opacity-100`}
+                      src={sizedArtwork(nowPlaying.artworkUrl, 600)}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      decoding="async"
+                      onLoad={(e) => e.currentTarget.setAttribute('data-loaded', '')}
+                    />
+                  </>
+                )}
+                {motion && (
+                  <MotionArtwork
+                    key={motion.url}
+                    motion={motion}
+                    className="absolute inset-0 size-full rounded-[inherit] object-cover opacity-0 transition-opacity duration-600 ease-in data-ready:opacity-100"
+                    playing={playing}
+                  />
+                )}
               </>
             )}
-            {motion && (
-              <MotionArtwork
-                key={motion.url}
-                motion={motion}
-                className="absolute inset-0 size-full rounded-[inherit] object-cover opacity-0 transition-opacity duration-600 ease-in data-ready:opacity-100"
-                playing={playing}
-              />
-            )}
             {video && !theater && <VideoSurface className="absolute inset-0" />}
+
+            {/* Hover on album cover: Custom Album Cover button overlay */}
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-[inherit] opacity-0 group-hover/cover:opacity-100 transition-all duration-200 pointer-events-none group-hover/cover:pointer-events-auto">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCoverModal(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-neutral-950/90 hover:bg-neutral-900 border border-white/20 text-white text-xs font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.6)] ring-1 ring-white/10 transition active:scale-95 cursor-pointer"
+                title="Change album cover (Image or Video)"
+                aria-label="Change album cover"
+              >
+                <ImageIcon size={16} />
+                <span>Change Cover</span>
+              </button>
+            </div>
           </div>
 
           <div className={`flex items-center gap-3${theater ? '' : ' mt-[clamp(20px,3.2vh,32px)]'}${column ? ' max-md:mt-0' : ''}`}>
@@ -1153,6 +2108,21 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
       >
         <UpNextIcon size={18} />
       </button>
+
+      {/* Custom Album Cover Modal (Image 1:1 auto-crop or Ping-Pong Video) */}
+      {showCoverModal && (
+        <CustomCoverModal
+          videoId={nowPlaying.videoId}
+          trackTitle={nowPlaying.title}
+          artistName={nowPlaying.artist}
+          defaultArtworkUrl={nowPlaying.artworkUrl ? sizedArtwork(nowPlaying.artworkUrl, 800) : null}
+          onClose={() => setShowCoverModal(false)}
+          onCoverChange={(cover) => {
+            setCustomCover(cover);
+            showToast(cover ? 'Custom album cover applied' : 'Custom album cover removed');
+          }}
+        />
+      )}
     </div>
   );
 }

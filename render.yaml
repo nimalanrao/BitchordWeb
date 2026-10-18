@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: bitchord-web
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install && pnpm build
+    startCommand: node scripts/prod-server.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

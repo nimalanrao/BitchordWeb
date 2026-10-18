@@ -1,6 +1,6 @@
 // Registers <am-lyrics>.
 import '@uimaxbai/am-lyrics/am-lyrics.js';
-import { Check, ChevronDown, Loader2, Minus, Settings2 } from 'lucide-react';
+import { Check, ChevronDown, Languages, Loader2, Minus, Settings2, Speech } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Menu, MenuHeader, MenuItem, MenuSeparator } from '@/components/Menu';
 import { LyricClock } from '@/lyrics/clock';
@@ -28,24 +28,43 @@ type AmLyricsElement = HTMLElement & {
  * scroll range to the footer, and `display: none` collapsed that range to zero,
  * so the lyrics never scrolled.
  */
-const HIDE_FOOTER = '.lyrics-footer { visibility: hidden !important; pointer-events: none !important; }';
+const HIDE_FOOTER =
+  '.lyrics-footer { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; user-select: none !important; } ' +
+  '.lyrics-footer * { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; user-select: none !important; } ' +
+  '.lyrics-header, .header-controls, .download-controls, .format-select, .download-button ' +
+  '{ display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important; ' +
+  'max-height: 0 !important; max-width: 0 !important; margin: 0 !important; padding: 0 !important; opacity: 0 !important; ' +
+  'pointer-events: none !important; position: absolute !important; overflow: hidden !important; }';
 
-/** The phone's lyric typeface (@font-face in styles/global.css), then the app's. */
-const LYRIC_FONT = "'BitChord SF Pro Display', 'DM Sans', system-ui, sans-serif";
+/**
+ * High-precision Native OS World Typography:
+ * - 'BitChord SF Pro Display' + 'DM Sans' for Latin, Cyrillic, and Greek
+ * - 'Nirmala UI' (Windows) & 'Kohinoor' (Apple) for all Indic scripts (Malayalam, Hindi/Devanagari, Tamil, Telugu, Kannada, Bengali, Punjabi)
+ * - 'Yu Gothic UI' / 'Meiryo' & 'Hiragino Sans' for Japanese
+ * - 'Malgun Gothic' & 'Apple SD Gothic Neo' for Korean
+ * - 'Microsoft YaHei UI' & 'PingFang SC' for Chinese
+ * - 'Segoe UI' & 'Geeza Pro' for Arabic, Hebrew, and Middle Eastern scripts
+ * - 'Leelawadee UI' for Thai
+ * Zero download lag, no font-swap jumping, and no vowel mark / diacritic clipping.
+ */
+const LYRIC_FONT =
+  "'BitChord SF Pro Display', 'DM Sans', 'Nirmala UI', 'Yu Gothic UI', 'Yu Gothic', 'Meiryo', 'Malgun Gothic', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Apple SD Gothic Neo', 'Kohinoor Devanagari', 'Kohinoor Bangla', 'Kohinoor Telugu', 'Segoe UI Variable Text', 'Segoe UI', 'Leelawadee UI', -apple-system, BlinkMacSystemFont, Roboto, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'";
 
 let lyricFont: Promise<void> | null = null;
 let lyricFontLoaded = false;
 
 /**
- * Both weights, fetched once. am-lyrics measures its lines for the scroll and
- * the wipe, so it's only built once the face is in: built earlier, it laid
- * out in the fallback and then jumped when the font arrived. A slow network
- * gives up after 1.5 s and lets the fallback show.
+ * Ensures 'BitChord SF Pro Display' is active before measuring am-lyrics layout.
+ * Native OS world fonts are instant (0ms delay), so lyrics initialize immediately.
  */
 function loadLyricFont(): Promise<void> {
   lyricFont ??= Promise.race([
-    Promise.all([document.fonts.load(`700 28px ${LYRIC_FONT}`), document.fonts.load(`400 28px ${LYRIC_FONT}`)]),
-    new Promise((resolve) => setTimeout(resolve, 1500)),
+    Promise.all([
+      document.fonts.load("700 28px 'BitChord SF Pro Display'"),
+      document.fonts.load("400 28px 'BitChord SF Pro Display'"),
+      document.fonts.load("700 28px 'DM Sans'"),
+    ]),
+    new Promise((resolve) => setTimeout(resolve, 800)),
   ])
     .catch(() => undefined)
     .then(() => {
@@ -106,6 +125,7 @@ function LyricsView({ ttml, full }: { ttml: string; full: boolean }) {
     el.ttml = ttml;
     el.interpolate = true;
     el.autoScroll = true;
+    el.setAttribute('autoscroll', '');
     el.highlightColor = '#ffffff';
     el.fontFamily = LYRIC_FONT;
     el.className = 'block min-h-0 flex-1 overflow-hidden [--am-lyrics-highlight-color:#fff]';
@@ -118,12 +138,41 @@ function LyricsView({ ttml, full }: { ttml: string; full: boolean }) {
     host.current?.append(el);
     element.current = el;
     const unmounted = new AbortController();
+    const injectHideStyles = (root: ShadowRoot) => {
+      if (!root.querySelector('style[data-bitchord-hide]')) {
+        const style = document.createElement('style');
+        style.setAttribute('data-bitchord-hide', 'true');
+        style.textContent = HIDE_FOOTER;
+        root.appendChild(style);
+      }
+      const header = root.querySelector('.lyrics-header');
+      if (header) {
+        (header as HTMLElement).style.setProperty('display', 'none', 'important');
+        (header as HTMLElement).style.setProperty('visibility', 'hidden', 'important');
+      }
+      const footer = root.querySelector('.lyrics-footer');
+      if (footer) {
+        (footer as HTMLElement).style.removeProperty('display');
+        (footer as HTMLElement).style.removeProperty('height');
+        (footer as HTMLElement).style.removeProperty('position');
+        (footer as HTMLElement).style.setProperty('visibility', 'hidden', 'important');
+        (footer as HTMLElement).style.setProperty('opacity', '0', 'important');
+        (footer as HTMLElement).style.setProperty('pointer-events', 'none', 'important');
+      }
+    };
+
     void Promise.resolve(el.updateComplete).then(() => {
       const root = el.shadowRoot;
       if (!root) return;
       const sheet = new CSSStyleSheet();
       sheet.replaceSync(HIDE_FOOTER + FAR_LINES + FULL_SIZE);
       root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+      injectHideStyles(root);
+
+      const observer = new MutationObserver(() => injectHideStyles(root));
+      observer.observe(root, { childList: true, subtree: true });
+      unmounted.signal.addEventListener('abort', () => observer.disconnect());
+
       // The full-screen column fades its top edge, but am-lyrics' toolbar
       // (romanize, translate, download) sits at the top of the same scroller
       // until the lines push it away. The fade grows with the scroll instead,
@@ -214,7 +263,15 @@ function useUngranted(): string[] {
 const NO_STATES: Partial<Record<LyricsSourceId, SourceState>> = {};
 
 /** The provider picker: which provider these lyrics are from, and the others' answers for this track. */
-function ProviderPicker({ current, full }: { current: LyricsSourceId | null; full: boolean }) {
+export function ProviderPicker({
+  current,
+  full,
+  className,
+}: {
+  current: LyricsSourceId | null;
+  full: boolean;
+  className?: string;
+}) {
   const videoId = usePlayer((s) => s.nowPlaying?.videoId ?? '');
   const states = useLyricsUi((s) => s.states[videoId]) ?? NO_STATES;
   const picked = useLyricsUi((s) => s.picked[videoId]);
@@ -225,16 +282,22 @@ function ProviderPicker({ current, full }: { current: LyricsSourceId | null; ful
   const label = current ? sourceById(current)?.label : 'Lyrics';
 
   return (
-    // In full screen the picker sits quietly above the lines, shown on hover.
+    // In full screen the picker sits quietly above the lines, shown on hover (unless overridden via className).
     <div
       className={
-        full
+        className !== undefined
+          ? className
+          : full
           ? 'flex items-center justify-between pb-1 opacity-0 transition-opacity duration-200 group-hover/panel:opacity-100 focus-within:opacity-100'
           : 'flex items-center justify-between px-4 pt-4 pb-1'
       }
     >
       <button
-        className="inline-flex items-center gap-1 rounded-[8px] px-2 py-1 type-callout-emphasized text-secondary hover:bg-quinary"
+        className={
+          full
+            ? 'inline-flex items-center gap-1 rounded-[10px] px-2.5 py-1.5 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/15 transition'
+            : 'inline-flex items-center gap-1 rounded-[8px] px-2 py-1 type-callout-emphasized text-secondary hover:bg-quinary'
+        }
         aria-haspopup="menu"
         onClick={(e) => setAnchor(e.currentTarget)}
       >
@@ -242,7 +305,11 @@ function ProviderPicker({ current, full }: { current: LyricsSourceId | null; ful
         <ChevronDown size={14} />
       </button>
       <button
-        className="grid size-7 place-items-center rounded-[8px] text-secondary hover:bg-quinary"
+        className={
+          full
+            ? 'grid size-8 place-items-center rounded-[10px] text-white/80 hover:text-white hover:bg-white/15 transition'
+            : 'grid size-7 place-items-center rounded-[8px] text-secondary hover:bg-quinary'
+        }
         aria-label="Lyric settings"
         onClick={() => setSettings(true)}
       >
@@ -277,6 +344,29 @@ function ProviderPicker({ current, full }: { current: LyricsSourceId | null; ful
             );
           })}
           <MenuSeparator />
+          <MenuItem
+            icon={<Languages size={15} />}
+            onSelect={() => {
+              close();
+              const amLyrics = document.querySelector('am-lyrics') as (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
+              const btn = amLyrics?.shadowRoot?.querySelector('button[title="Toggle Translation"]') as HTMLButtonElement | null;
+              btn?.click();
+            }}
+          >
+            Translate Lyrics
+          </MenuItem>
+          <MenuItem
+            icon={<Speech size={15} />}
+            onSelect={() => {
+              close();
+              const amLyrics = document.querySelector('am-lyrics') as (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
+              const btn = amLyrics?.shadowRoot?.querySelector('button[title="Toggle Romanization"]') as HTMLButtonElement | null;
+              btn?.click();
+            }}
+          >
+            Romanize Lyrics
+          </MenuItem>
+          <MenuSeparator />
           <MenuItem onSelect={() => (close(), setSettings(true))}>Lyric Settings…</MenuItem>
         </Menu>
       )}
@@ -297,7 +387,13 @@ const fullSizes =
  * (report §7), and the right-hand column of the full-screen player, where the
  * lines are larger and the player's mesh stands in for the Canvas.
  */
-export function LyricsPanel({ variant = 'panel' }: { variant?: 'panel' | 'full' }) {
+export function LyricsPanel({
+  variant = 'panel',
+  showPicker = true,
+}: {
+  variant?: 'panel' | 'full';
+  showPicker?: boolean;
+}) {
   const lyrics = useLyrics();
   const hasTrack = usePlayer((s) => s.nowPlaying !== null);
   const fontReady = useLyricFont();
@@ -310,7 +406,7 @@ export function LyricsPanel({ variant = 'panel' }: { variant?: 'panel' | 'full' 
 
   return (
     <div className={full ? `${panel} ${fullSizes}` : panel}>
-      <ProviderPicker current={result?.source ?? null} full={full} />
+      {showPicker && <ProviderPicker current={result?.source ?? null} full={full} />}
       {!hasTrack ? (
         <div className={empty}>
           <p className={emptyTitle}>No lyrics available</p>

@@ -4,7 +4,6 @@ import { LogoMark } from '@/components/icons/LogoMark';
 import { sizedArtwork } from '@/lib/artwork';
 import { usePlayer } from '@/state/player';
 import { useUi } from '@/state/ui';
-import { useScrubber } from './useScrubber';
 import { preloadRoute } from '@/pageRegistry';
 
 function FilledHomeIcon({ size = 20, className }: { size?: number; className?: string }) {
@@ -88,7 +87,6 @@ export function MobileMiniPlayer() {
   const hasNext = usePlayer((s) => s.index + 1 < s.queue.length || s.repeat !== 'off' || (s.autoplay && s.index >= 0));
   const { togglePlay, next } = usePlayer.getState();
   const setFullScreen = useUi((s) => s.setFullScreen);
-  const { bar } = useScrubber();
 
   return (
     <div
@@ -96,14 +94,6 @@ export function MobileMiniPlayer() {
       role="region"
       aria-label="Mini Player"
     >
-      {/* 2px progress bar at top */}
-      <div className="absolute top-0 inset-x-6 h-[2px] overflow-hidden pointer-events-none rounded-[9999px] bg-white/10">
-        <div
-          ref={bar}
-          className="size-full origin-left scale-x-(--progress) bg-key transition-[background-color] duration-120 ease-in [--progress:0]"
-        />
-      </div>
-
       {/* Tapping on artwork or title expands to full screen */}
       <div
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-1 active:opacity-80"

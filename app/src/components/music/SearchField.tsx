@@ -57,7 +57,7 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
         <Search size={15} strokeWidth={2.4} className="pointer-events-none absolute left-2.5 text-secondary" aria-hidden="true" />
         <input
           ref={input}
-          className="h-[38px] w-full rounded-pill border border-search-border bg-page pt-1.5 pr-[30px] pb-[5px] pl-7 type-body text-primary placeholder:text-tertiary [&::-webkit-search-cancel-button]:hidden"
+          className="h-[38px] w-full rounded-pill border border-white/10 bg-white/5 hover:bg-white/10 focus:bg-black/40 focus:border-white/20 pt-1.5 pr-[30px] pb-[5px] pl-7 type-body text-primary placeholder:text-tertiary transition-all duration-200 outline-none [&::-webkit-search-cancel-button]:hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]"
           type="search"
           value={value}
           placeholder="Artists, Songs, Lyrics, and More"

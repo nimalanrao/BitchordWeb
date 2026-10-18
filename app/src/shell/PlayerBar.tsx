@@ -95,7 +95,7 @@ export function PlayerBar() {
     // The side panel overlays the page; the pill re-centres in what's left.
     // On mobile (<484px), the sidebar is a drawer, so left-0 is used, floating at bottom-2.5.
     <div
-      className="pointer-events-none absolute right-0 bottom-(--player-bottom-offset) left-(--web-navigation-width) z-[calc(var(--z-web-chrome)-1)] flex justify-center px-5 transition-[padding-inline-end] duration-(--duration-panel) ease-panel data-[panel-open=true]:pe-[calc(var(--side-panel-width)+20px)] max-sm:fixed max-sm:inset-x-0 max-sm:bottom-2 max-sm:left-0 max-sm:z-[calc(var(--z-web-chrome)+5)] max-sm:px-3"
+      className="pointer-events-none absolute right-0 bottom-(--player-bottom-offset) left-(--web-navigation-width) z-[calc(var(--z-web-chrome)-1)] flex justify-center px-5 transition-[left,padding-inline-end] duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] data-[panel-open=true]:pe-[calc(var(--side-panel-width)+20px)] max-sm:fixed max-sm:inset-x-0 max-sm:bottom-2 max-sm:left-0 max-sm:z-[calc(var(--z-web-chrome)+5)] max-sm:px-3"
       data-panel-open={sidePanel !== null}
     >
       {/* Desktop 3-column pill */}

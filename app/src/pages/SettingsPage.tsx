@@ -1,11 +1,12 @@
-import { ChevronRight, Users } from 'lucide-react';
+import { ChevronRight, LogIn, LogOut, RefreshCw, Users } from 'lucide-react';
 import { lazy, Suspense, useState, type ComponentType, type ReactNode } from 'react';
-import { SiApplemusic, SiYoutubemusic } from 'react-icons/si';
+import { SiApplemusic, SiGoogle, SiYoutubemusic } from 'react-icons/si';
 import { PageHeader } from '@/components/PageHeader';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { useParty } from '@/party/useParty';
 import { useHistorySettings } from '@/playback/historyReporting';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
+import { useGoogleAuth } from '@/state/auth';
 import { CustomDropdown } from '@/components/CustomDropdown';
 import { AppleMusicToggles, Toggle } from './IntegrationSettings';
 import { settingsUi } from './settingsStyles';
@@ -43,9 +44,13 @@ export default function SettingsPage() {
   const autoplay = usePlayer((s) => s.autoplay);
   const crossfadeSec = usePlayer((s) => s.crossfadeSec);
   const playerTheme = usePlayer((s) => s.playerTheme);
+  const wesperizedAlignment = usePlayer((s) => s.wesperizedAlignment);
+  const dynamicBg = usePlayer((s) => s.dynamicBg);
   const shareHistory = useHistorySettings((s) => s.share);
   const setShareHistory = useHistorySettings((s) => s.setShare);
-  const { setAutoplay, setCrossfade, setPlayerTheme } = usePlayer.getState();
+  const googleAuth = useGoogleAuth();
+  const isGoogleSignedIn = googleAuth.signedIn;
+  const { setAutoplay, setCrossfade, setPlayerTheme, setWesperizedAlignment, setDynamicBg } = usePlayer.getState();
   const [lyrics, setLyrics] = useState(false);
 
   return (
@@ -54,12 +59,78 @@ export default function SettingsPage() {
       <div className={settingsUi.body}>
         <h2 className={settingsUi.sectionHeader}>Account & Streaming</h2>
         <section className={settingsUi.group}>
+          {/* Google Account Row */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className={settingsUi.integrationIcon} style={{ backgroundColor: '#ffffff', color: '#4285F4' }}>
+                <SiGoogle size={15} />
+              </span>
+              <div className="min-w-0">
+                <span className="block font-medium truncate">
+                  {isGoogleSignedIn ? (googleAuth.user?.name || 'Google Account') : 'Google Account'}
+                </span>
+                <span className="block text-[12px] text-secondary truncate">
+                  {isGoogleSignedIn
+                    ? (googleAuth.user?.email || 'Signed in')
+                    : 'Sign in to sync your playlists and library'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-none">
+              {isGoogleSignedIn ? (
+                <>
+                  <button
+                    onClick={() => void googleAuth.syncLibrary()}
+                    disabled={googleAuth.isSyncing}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/15 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw size={13} className={googleAuth.isSyncing ? 'animate-spin' : ''} />
+                    <span>{googleAuth.isSyncing ? 'Syncing…' : 'Sync Library'}</span>
+                  </button>
+                  <button
+                    onClick={() => googleAuth.signOut()}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-red-500/15 text-red-400 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 transition-colors cursor-pointer"
+                  >
+                    <LogOut size={13} />
+                    <span>Sign Out</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    const email = window.prompt('Enter your Google Account email (or press OK for quick sign-in):', 'user@gmail.com');
+                    if (email !== null) {
+                      const name = email.split('@')[0] || 'Google User';
+                      googleAuth.signIn({
+                        id: `google_${Date.now()}`,
+                        name: name.charAt(0).toUpperCase() + name.slice(1),
+                        email: email.trim() || 'user@gmail.com',
+                      });
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-key px-3.5 py-1.5 text-xs font-semibold text-white hover:brightness-110 transition-all cursor-pointer shadow-md"
+                >
+                  <LogIn size={13} />
+                  <span>Sign In with Google</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* YouTube Music Standalone Indicator */}
           <div className={settingsUi.integration}>
             <Glyph Icon={SiYoutubemusic} color="#ffffff" ink="#ff0033" />
             <span className={settingsUi.integrationName}>YouTube Music</span>
             <span className={settingsUi.value}>Integrated (Standalone Web)</span>
           </div>
         </section>
+
+        {isGoogleSignedIn && (
+          <p className={settingsUi.footer}>
+            Library synced {googleAuth.lastSynced ? `just now` : 'recently'}. Your playlists and library are live in the sidebar.
+          </p>
+        )}
 
         <section className={`${settingsUi.group} mt-3 empty:hidden`}>
           <Toggle
@@ -103,11 +174,38 @@ export default function SettingsPage() {
               onChange={setPlayerTheme}
               ariaLabel="Player Theme"
               options={[
-                { value: 'cinematic', label: 'Cinematic Canvas (Apple Music 1:1)' },
+                { value: 'cinematic', label: 'Wesperzied' },
                 { value: 'mesh', label: 'Classic Live Mesh' },
               ]}
             />
           </div>
+
+          {playerTheme === 'cinematic' && (
+            <div className={settingsUi.controlRow}>
+              <div className="min-w-0 flex-1">
+                <span className="block font-medium">Control Panel Alignment</span>
+                <span className="block text-[12px] text-secondary">
+                  Align song details and playback controls to the left or center of the album cover.
+                </span>
+              </div>
+              <CustomDropdown
+                value={wesperizedAlignment}
+                onChange={setWesperizedAlignment}
+                ariaLabel="Control Panel Alignment"
+                options={[
+                  { value: 'left', label: 'Left Side' },
+                  { value: 'center', label: 'Centered' },
+                ]}
+              />
+            </div>
+          )}
+
+          <Toggle
+            label="Dynamic Background"
+            detail="Tints all pages with the current song's album cover color."
+            checked={dynamicBg}
+            onChange={setDynamicBg}
+          />
         </section>
 
         <h2 className={settingsUi.sectionHeader}>Playback</h2>

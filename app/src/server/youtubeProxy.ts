@@ -101,7 +101,12 @@ export async function handleYoutubeProxy(req: IncomingMessage, res: ServerRespon
 
     if (upstream.body) {
       const { Readable } = await import('node:stream');
-      Readable.fromWeb(upstream.body as any).pipe(res);
+      const stream = Readable.fromWeb(upstream.body as any);
+      stream.on('error', () => {});
+      req.on('close', () => {
+        try { stream.destroy(); } catch {}
+      });
+      stream.pipe(res);
     } else {
       res.end();
     }

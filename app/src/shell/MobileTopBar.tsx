@@ -7,9 +7,12 @@ import { AccountButton } from './AccountButton';
 export function MobileTopBar() {
   return (
     <header className="hidden max-sm:absolute max-sm:inset-x-0 max-sm:top-0 max-sm:z-[calc(var(--z-web-chrome)-2)] max-sm:flex max-sm:h-(--mobile-top-bar-height) max-sm:items-center max-sm:justify-between max-sm:px-4 max-sm:glass-material">
-      <PrefetchLink to="/home" className="inline-flex items-center gap-2 type-[700_17px/22px]" aria-label="BitChord, Home">
+      <PrefetchLink to="/home" className="inline-flex items-center gap-2 type-[700_17px/22px]" aria-label="BitChord+, Home">
         <LogoMark size={22} className="text-primary" />
-        <span className="font-semibold tracking-tight">BitChord</span>
+        <span className="font-semibold tracking-tight flex items-center">
+          <span>BitChord</span>
+          <span className="text-key ml-0.5 font-bold">+</span>
+        </span>
       </PrefetchLink>
       <div className="flex items-center gap-2">
         <PrefetchNavLink

@@ -182,18 +182,23 @@ function runsText(node: unknown): string {
 
 /** One library page, a page of it at a time: grids continue as grids, song lists as song lists. */
 export async function fetchLibrary(section: LibrarySection): Promise<Paged<BrowsePage>> {
-  const yt = await getSignedInnertube();
-  const { YTNodes } = await import('youtubei.js/web');
   const { title, browseId } = LIBRARY_SECTIONS[section];
-  const response = await yt.actions.execute('/browse', { browseId, client: 'YTMUSIC', parse: true });
-  const memo = response.contents_memo;
-  const grids = memo?.getType(YTNodes.Grid) ?? [];
-  const lists = [...(memo?.getType(YTNodes.MusicShelf) ?? []), ...(memo?.getType(YTNodes.MusicPlaylistShelf) ?? [])];
-  const carousels = memo?.getType(YTNodes.MusicCarouselShelf) ?? [];
-  const page = mapBrowse({ sections: [...grids, ...lists, ...carousels] }, title);
-  // History is several lists ("Today", "Yesterday"); the rest is one grid or one list.
-  const token = (grids[0]?.continuation ?? (lists.length === 1 ? lists[0]?.continuation : null)) || null;
-  return { data: { ...page, title }, next: token ? () => orEnd(() => libraryContinuation(token, title), emptyPage(title)) : null };
+  try {
+    const yt = await getSignedInnertube();
+    const { YTNodes } = await import('youtubei.js/web');
+    const response = await yt.actions.execute('/browse', { browseId, client: 'YTMUSIC', parse: true });
+    const memo = response.contents_memo;
+    const grids = memo?.getType(YTNodes.Grid) ?? [];
+    const lists = [...(memo?.getType(YTNodes.MusicShelf) ?? []), ...(memo?.getType(YTNodes.MusicPlaylistShelf) ?? [])];
+    const carousels = memo?.getType(YTNodes.MusicCarouselShelf) ?? [];
+    const page = mapBrowse({ sections: [...grids, ...lists, ...carousels] }, title);
+    // History is several lists ("Today", "Yesterday"); the rest is one grid or one list.
+    const token = (grids[0]?.continuation ?? (lists.length === 1 ? lists[0]?.continuation : null)) || null;
+    return { data: { ...page, title }, next: token ? () => orEnd(() => libraryContinuation(token, title), emptyPage(title)) : null };
+  } catch {
+    // If the account has no items or InnerTube returns empty/unauthenticated, return an empty page gracefully
+    return { data: emptyPage(title), next: null };
+  }
 }
 
 const emptyPage = (title: string): BrowsePage => ({ title, shelves: [], grid: [], tracks: [] });

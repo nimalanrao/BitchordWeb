@@ -49,6 +49,28 @@
   --animate-lyrics-switch: lyrics-switch 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-tab-fade: tab-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-blur-fade-out: blur-fade-out 0.3s cubic-bezier(0.2, 0, 0, 1) forwards;
+  --animate-crossfade: crossfade 0.85s cubic-bezier(0.25, 1, 0.5, 1) both;
+  --animate-cover-crossfade: cover-crossfade 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes crossfade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes cover-crossfade {
+    from {
+      opacity: 0;
+      transform: scale(0.975);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 
   @keyframes cover-switch {
     from {

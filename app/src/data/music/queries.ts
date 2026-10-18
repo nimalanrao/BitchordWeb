@@ -8,6 +8,8 @@ import {
 } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { queryClient } from '@/lib/queryClient';
+import { useGoogleAuth } from '@/state/auth';
+import { useYtAuth } from '@/extension/useYtAuth';
 import {
   addToPlaylist,
   fetchAlbum,
@@ -160,7 +162,10 @@ export function prefetchPageData(pathname: string): void {
 // ---- Signed in ------------------------------------------------------
 
 export function useSignedIn(): boolean {
-  return false;
+  const googleSignedIn = useGoogleAuth((s) => s.signedIn);
+  const ytStatus = useYtAuth();
+  const ytSignedIn = ytStatus.state === 'ready' && ytStatus.auth.signedIn;
+  return googleSignedIn || ytSignedIn;
 }
 
 type LibraryPageParam = (() => Promise<Paged<BrowsePage>>) | null;

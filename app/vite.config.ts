@@ -14,7 +14,7 @@ function devExtensionId(): string {
   }
 }
 
-import { youtubeProxyPlugin } from './src/server/youtubeProxy.ts';
+import { youtubeProxyPlugin } from './src/server/youtubeProxy';
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), youtubeProxyPlugin()],

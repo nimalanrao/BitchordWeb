@@ -13,12 +13,16 @@ interface UiState {
   /** The sidebar as a drawer, below 484px where it's otherwise hidden. */
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
+  /** Retractable desktop sidebar: full width or collapsed to icons only. */
+  sidebarCollapsed: boolean;
+  toggleSidebarCollapsed: () => void;
   /** The extension install banner, dismissed for this tab only. */
   installBannerDismissed: boolean;
   dismissInstallBanner: () => void;
 }
 
 const BANNER_KEY = 'bitchord:install-banner-dismissed';
+const SIDEBAR_COLLAPSED_KEY = 'bitchord:sidebar-collapsed';
 
 export const useUi = create<UiState>()((set) => ({
   sidePanel: null,
@@ -28,6 +32,13 @@ export const useUi = create<UiState>()((set) => ({
   setFullScreen: (fullScreen) => set({ fullScreen }),
   drawerOpen: false,
   setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
+  sidebarCollapsed: localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1',
+  toggleSidebarCollapsed: () =>
+    set((s) => {
+      const next = !s.sidebarCollapsed;
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+      return { sidebarCollapsed: next };
+    }),
   installBannerDismissed: sessionStorage.getItem(BANNER_KEY) === '1',
   dismissInstallBanner: () => {
     sessionStorage.setItem(BANNER_KEY, '1');

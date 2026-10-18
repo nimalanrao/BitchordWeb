@@ -39,6 +39,7 @@ export type RepeatMode = 'off' | 'all' | 'one';
 export const CROSSFADE_CHOICES = [0, 3, 6, 9, 12] as const;
 
 export type PlayerTheme = 'cinematic' | 'mesh';
+export type WesperizedAlignment = 'left' | 'center';
 
 interface Settings {
   shuffle: boolean;
@@ -49,6 +50,8 @@ interface Settings {
   muted: boolean;
   crossfadeSec: number;
   playerTheme: PlayerTheme;
+  wesperizedAlignment: WesperizedAlignment;
+  dynamicBg: boolean;
 }
 
 interface PlayerState extends Settings {
@@ -88,12 +91,24 @@ interface PlayerState extends Settings {
   toggleMute: () => void;
   setCrossfade: (seconds: number) => void;
   setPlayerTheme: (theme: PlayerTheme) => void;
+  setWesperizedAlignment: (alignment: WesperizedAlignment) => void;
+  setDynamicBg: (enabled: boolean) => void;
 }
 
 // ---- Settings, kept across visits ---------------------------------------------------
 
 const SETTINGS_KEY = 'bitchord:player';
-const DEFAULT_SETTINGS: Settings = { shuffle: false, repeat: 'off', autoplay: true, volume: 1, muted: false, crossfadeSec: 0, playerTheme: 'cinematic' };
+const DEFAULT_SETTINGS: Settings = {
+  shuffle: false,
+  repeat: 'off',
+  autoplay: true,
+  volume: 1,
+  muted: false,
+  crossfadeSec: 0,
+  playerTheme: 'cinematic',
+  wesperizedAlignment: 'left',
+  dynamicBg: false,
+};
 
 function loadSettings(): Settings {
   try {
@@ -104,8 +119,11 @@ function loadSettings(): Settings {
 }
 
 function saveSettings(state: Settings) {
-  const { shuffle, repeat, autoplay, volume, muted, crossfadeSec, playerTheme } = state;
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ shuffle, repeat, autoplay, volume, muted, crossfadeSec, playerTheme }));
+  const { shuffle, repeat, autoplay, volume, muted, crossfadeSec, playerTheme, wesperizedAlignment, dynamicBg } = state;
+  localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({ shuffle, repeat, autoplay, volume, muted, crossfadeSec, playerTheme, wesperizedAlignment, dynamicBg }),
+  );
 }
 
 // ---- Decks: two engines, so a crossfade can play the next track under this one ------------
@@ -410,6 +428,16 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
 
   setPlayerTheme(playerTheme) {
     set({ playerTheme });
+    saveSettings(get());
+  },
+
+  setWesperizedAlignment(wesperizedAlignment) {
+    set({ wesperizedAlignment });
+    saveSettings(get());
+  },
+
+  setDynamicBg(dynamicBg) {
+    set({ dynamicBg });
     saveSettings(get());
   },
 }));
