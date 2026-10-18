@@ -642,8 +642,15 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
           {/* Top Vignette behind top buttons */}
           <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/80 via-black/30 to-transparent pointer-events-none" />
 
-          {/* Deep Bottom Vignette behind lower-third controls */}
-          <div className="absolute inset-x-0 bottom-0 h-[75%] bg-gradient-to-t from-black via-black/90 45% via-black/50 75% to-transparent pointer-events-none" />
+          {/* Bottom Vignette with blur and reduced opacity so album cover is clearly visible behind buttons */}
+          <div
+            className="absolute inset-x-0 bottom-0 h-[65%] backdrop-blur-[24px] pointer-events-none"
+            style={{
+              maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
+            }}
+          />
+          <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/75 via-black/45 45% via-black/15 75% to-transparent pointer-events-none" />
         </div>
 
         {/* Toast Notification */}
