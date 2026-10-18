@@ -147,40 +147,40 @@ function WavyScrubber() {
           ctx.moveTo(playedWidth, cy);
           ctx.lineTo(w, cy);
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2.5;
           ctx.lineCap = 'round';
           ctx.stroke();
         }
 
-        // Draw played line (wavy sine wave)
+        // Draw played line (wavy sine wave) - bolder & fluid
         if (playedWidth > 0) {
           ctx.beginPath();
           ctx.moveTo(0, cy);
-          const wavelength = 18;
-          const amplitude = 3;
+          const wavelength = 20;
+          const amplitude = 4;
           for (let x = 0; x <= playedWidth; x += 1.5) {
             const y = cy + amplitude * Math.sin(((x - phase) / wavelength) * 2 * Math.PI);
             ctx.lineTo(x, y);
           }
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2.5;
+          ctx.lineWidth = 3.2;
           ctx.lineCap = 'round';
           ctx.stroke();
         }
 
         // Draw white circular thumb at (playedWidth, cy)
         ctx.beginPath();
-        ctx.arc(playedWidth, cy, 4.5, 0, Math.PI * 2);
+        ctx.arc(playedWidth, cy, 6, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-        ctx.shadowBlur = 4;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 6;
         ctx.fill();
 
         ctx.restore();
       }
 
       if (audio && !audio.paused) {
-        phase = (phase + 0.35) % 18;
+        phase = (phase + 0.38) % 20;
       }
 
       frame = requestAnimationFrame(render);
@@ -214,15 +214,15 @@ function WavyScrubber() {
   };
 
   return (
-    <div className="w-full max-w-[360px] mx-auto mt-4 select-none">
-      <div className="flex items-center gap-2.5">
-        <span ref={elapsedRef} className="text-[11px] font-medium tabular-nums text-white/60 min-w-[32px] text-right">
+    <div className="w-full max-w-[440px] mx-auto mt-5 select-none">
+      <div className="flex items-center gap-3">
+        <span ref={elapsedRef} className="text-xs sm:text-sm font-semibold tabular-nums text-white/70 min-w-[38px] text-right">
           0:00
         </span>
-        <div className="flex-1 h-6 cursor-pointer touch-none flex items-center relative" {...handlers}>
+        <div className="flex-1 h-8 cursor-pointer touch-none flex items-center relative" {...handlers}>
           <canvas ref={canvasRef} className="w-full h-full block" />
         </div>
-        <span ref={durationRef} className="text-[11px] font-medium tabular-nums text-white/60 min-w-[32px]">
+        <span ref={durationRef} className="text-xs sm:text-sm font-semibold tabular-nums text-white/70 min-w-[38px]">
           0:00
         </span>
       </div>
@@ -279,53 +279,53 @@ function CinematicTransport() {
   const { togglePlay, next, previous, toggleShuffle, cycleRepeat } = usePlayer.getState();
 
   return (
-    <div className="mx-auto mt-2 flex h-16 w-full max-w-[340px] items-center justify-between px-2">
+    <div className="mx-auto mt-3 flex h-20 w-full max-w-[400px] items-center justify-between px-2">
       <button
-        className={`grid place-items-center size-9 rounded-full transition-colors ${
+        className={`grid place-items-center size-11 rounded-full transition-colors ${
           shuffle ? 'text-white' : 'text-white/40 hover:text-white'
         }`}
         aria-label="Shuffle"
         onClick={toggleShuffle}
       >
-        <Shuffle size={20} />
+        <Shuffle size={24} />
       </button>
 
       <button
-        className="grid place-items-center size-10 rounded-full text-white/80 hover:text-white active:scale-90 transition disabled:opacity-40"
+        className="grid place-items-center size-12 rounded-full text-white/85 hover:text-white active:scale-90 transition disabled:opacity-40"
         disabled={!hasTrack}
         aria-label="Previous"
         onClick={previous}
       >
-        <SkipBack size={26} fill="currentColor" />
+        <SkipBack size={32} fill="currentColor" />
       </button>
 
-      {/* Solid White Circle Play/Pause Button */}
+      {/* Solid White Circle Play/Pause Button - Prominent & Bigger */}
       <button
-        className="grid place-items-center size-14 rounded-full bg-white text-black shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:scale-105 active:scale-95 transition-transform"
+        className="grid place-items-center size-16 sm:size-18 rounded-full bg-white text-black shadow-[0_6px_24px_rgba(0,0,0,0.5)] hover:scale-105 active:scale-95 transition-transform"
         disabled={!hasTrack}
         aria-label={playing ? 'Pause' : 'Play'}
         onClick={togglePlay}
       >
-        {playing ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />}
+        {playing ? <Pause size={30} fill="black" /> : <Play size={30} fill="black" className="ml-1" />}
       </button>
 
       <button
-        className="grid place-items-center size-10 rounded-full text-white/80 hover:text-white active:scale-90 transition disabled:opacity-40"
+        className="grid place-items-center size-12 rounded-full text-white/85 hover:text-white active:scale-90 transition disabled:opacity-40"
         disabled={!hasTrack || !hasNext}
         aria-label="Next"
         onClick={next}
       >
-        <SkipForward size={26} fill="currentColor" />
+        <SkipForward size={32} fill="currentColor" />
       </button>
 
       <button
-        className={`grid place-items-center size-9 rounded-full transition-colors ${
+        className={`grid place-items-center size-11 rounded-full transition-colors ${
           repeat !== 'off' ? 'text-white' : 'text-white/40 hover:text-white'
         }`}
         aria-label={repeat === 'one' ? 'Repeat one' : repeat === 'all' ? 'Repeat all' : 'Repeat'}
         onClick={cycleRepeat}
       >
-        {repeat === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
+        {repeat === 'one' ? <Repeat1 size={24} /> : <Repeat size={24} />}
       </button>
     </div>
   );
@@ -596,9 +596,55 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
         onPointerDown={wake}
         onKeyDown={wake}
       >
-        {/* Ambient Blurred Colored Backdrop across the entire canvas */}
-        <MeshBackdrop artworkUrl={nowPlaying.artworkUrl} playing={playing} />
-        <div className="absolute inset-0 bg-black/45 pointer-events-none" />
+        {/* 1. Full-Window Ambient Blurred Artwork Background (100% seamless, covers entire screen) */}
+        <div className="absolute inset-0 size-full overflow-hidden pointer-events-none -z-1">
+          {nowPlaying.artworkUrl && (
+            <img
+              src={sizedArtwork(nowPlaying.artworkUrl, 300)}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="size-full object-cover object-center scale-150 blur-[80px] brightness-75 contrast-125 saturate-150"
+            />
+          )}
+          <div className="absolute inset-0 bg-black/45" />
+        </div>
+
+        {/* 2. Sharp Left Artwork fading gently into the ambient blurred background */}
+        <div className="absolute inset-0 size-full overflow-hidden pointer-events-none z-0">
+          {nowPlaying.artworkUrl && (
+            <img
+              src={sizedArtwork(nowPlaying.artworkUrl, 1600)}
+              alt=""
+              referrerPolicy="no-referrer"
+              decoding="async"
+              className={`absolute inset-y-0 left-0 h-full w-[60vw] max-md:w-full object-cover object-left-top md:object-center transition-transform duration-1000 ${
+                spinning ? 'animate-[spin_20s_linear_infinite] scale-105' : ''
+              }`}
+              style={{
+                maskImage:
+                  'linear-gradient(to right, black 0%, black 25%, rgba(0,0,0,0.7) 45%, rgba(0,0,0,0.2) 62%, transparent 78%)',
+                WebkitMaskImage:
+                  'linear-gradient(to right, black 0%, black 25%, rgba(0,0,0,0.7) 45%, rgba(0,0,0,0.2) 62%, transparent 78%)',
+              }}
+            />
+          )}
+          {motion && (
+            <MotionArtwork
+              motion={motion}
+              className="absolute inset-y-0 left-0 h-full w-[60vw] max-md:w-full object-cover opacity-90 transition-opacity duration-600"
+              playing={playing}
+            />
+          )}
+
+          {/* Right edge smooth darkening dissolve over the lyrics */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent 30% via-black/40 55% to-black/80 pointer-events-none" />
+
+          {/* Top Vignette behind top buttons */}
+          <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/80 via-black/30 to-transparent pointer-events-none" />
+
+          {/* Deep Bottom Vignette behind lower-third controls */}
+          <div className="absolute inset-x-0 bottom-0 h-[75%] bg-gradient-to-t from-black via-black/90 45% via-black/50 75% to-transparent pointer-events-none" />
+        </div>
 
         {/* Toast Notification */}
         {toastMessage && (
@@ -611,159 +657,127 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
         {/* Top-Right Browser Fullscreen Button */}
         {document.fullscreenEnabled && (
           <button
-            className="absolute top-4 right-5 z-40 grid size-8 place-items-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition"
+            className="absolute top-4 right-5 z-40 grid size-10 place-items-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition"
             aria-label={browserFullScreen ? 'Exit full screen' : 'Enter full screen'}
             onClick={toggleBrowserFullScreen}
           >
-            {browserFullScreen ? <Minimize size={18} /> : <Maximize size={18} />}
+            {browserFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
           </button>
         )}
 
         {/* Main 2-Column Split Layout */}
-        <div className="relative size-full flex flex-col md:flex-row items-stretch">
-          {/* ================= LEFT COLUMN: Artwork & Player Controls ================= */}
-          <div className="relative w-full md:w-1/2 h-full flex flex-col justify-between overflow-hidden">
-            {/* Full-bleed Left Artwork with Vignettes and Right-edge Gradient Dissolve */}
-            <div className="absolute inset-0 size-full overflow-hidden pointer-events-none">
-              {nowPlaying.artworkUrl && (
-                <img
-                  src={sizedArtwork(nowPlaying.artworkUrl, 1200)}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  decoding="async"
-                  className={`size-full object-cover object-center transition-transform duration-1000 ${
-                    spinning ? 'animate-[spin_20s_linear_infinite] scale-105' : ''
-                  }`}
-                  style={{
-                    maskImage:
-                      'linear-gradient(to right, black 55%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.1) 95%, transparent 100%)',
-                    WebkitMaskImage:
-                      'linear-gradient(to right, black 55%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.1) 95%, transparent 100%)',
-                  }}
-                />
-              )}
-              {motion && (
-                <MotionArtwork
-                  motion={motion}
-                  className="absolute inset-0 size-full object-cover opacity-90 transition-opacity duration-600"
-                  playing={playing}
-                />
-              )}
-              {/* Top Vignette behind header controls */}
-              <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/60 to-transparent" />
-              {/* Bottom Vignette behind lower-third controls */}
-              <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
-            </div>
-
-            {/* Top Header Buttons (Vinyl Disc, Queue List, Close) */}
-            <div className="relative z-30 flex items-center justify-end gap-3 px-6 pt-5">
+        <div className="relative z-10 size-full flex flex-col md:flex-row items-stretch">
+          {/* ================= LEFT COLUMN: Header & Player Controls ================= */}
+          <div className="relative w-full md:w-1/2 h-full flex flex-col justify-between">
+            {/* Top Header Buttons (Vinyl Disc, Queue List, Close) - Bigger */}
+            <div className="relative z-30 flex items-center justify-end gap-3.5 px-8 pt-6">
               <button
                 onClick={() => {
                   setSpinning((s) => !s);
                   showToast(spinning ? 'Vinyl Canvas Off' : 'Vinyl Canvas On');
                 }}
-                className={`grid size-8 place-items-center rounded-full transition ${
-                  spinning ? 'bg-white text-black' : 'text-white/70 hover:text-white hover:bg-white/10'
+                className={`grid size-11 place-items-center rounded-full transition ${
+                  spinning ? 'bg-white text-black' : 'text-white/80 hover:text-white hover:bg-white/15'
                 }`}
                 title="Toggle Vinyl Canvas"
                 aria-label="Toggle Vinyl Canvas"
               >
-                <Disc3 size={18} className={spinning ? 'animate-spin' : ''} />
+                <Disc3 size={22} className={spinning ? 'animate-spin' : ''} />
               </button>
               <button
                 onClick={() => togglePanel('queue')}
-                className={`grid size-8 place-items-center rounded-full transition ${
-                  showQueue ? 'bg-white text-black' : 'text-white/70 hover:text-white hover:bg-white/10'
+                className={`grid size-11 place-items-center rounded-full transition ${
+                  showQueue ? 'bg-white text-black' : 'text-white/80 hover:text-white hover:bg-white/15'
                 }`}
                 title="Up Next Queue"
                 aria-label="Up Next Queue"
               >
-                <ListMusic size={18} />
+                <ListMusic size={22} />
               </button>
               <button
                 ref={close}
                 onClick={() => setFullScreen(false)}
-                className="grid size-8 place-items-center rounded-full text-white/70 hover:text-white hover:bg-white/10 transition"
+                className="grid size-11 place-items-center rounded-full text-white/80 hover:text-white hover:bg-white/15 transition"
                 title="Close"
                 aria-label="Close"
               >
-                <X size={18} />
+                <X size={22} />
               </button>
             </div>
 
-            {/* Lower-Third Track Information & Working 1:1 Controls */}
-            <div className="relative z-30 w-full max-w-[420px] mx-auto px-6 pb-8 pt-4 flex flex-col items-center">
-              {/* Track Title */}
-              <h1 className="text-2xl md:text-3xl font-bold text-white text-center tracking-tight leading-tight line-clamp-2 drop-shadow-md">
+            {/* Lower-Third Track Information & Working 1:1 Controls - Bigger & Bolder */}
+            <div className="relative z-30 w-full max-w-[500px] mx-auto px-6 pb-10 pt-4 flex flex-col items-center">
+              {/* Track Title - Bigger */}
+              <h1 className="text-3xl sm:text-4xl md:text-[38px] font-black text-white text-center tracking-tight leading-tight line-clamp-2 drop-shadow-lg">
                 {title}
               </h1>
 
-              {/* Artist */}
-              <div className="text-xs md:text-sm font-semibold text-white/80 text-center tracking-wider uppercase mt-1 drop-shadow-sm truncate max-w-full">
+              {/* Artist - Bigger */}
+              <div className="text-sm sm:text-base md:text-[17px] font-bold text-white/90 text-center tracking-wider uppercase mt-2 drop-shadow truncate max-w-[460px]">
                 {artist}
               </div>
 
-              {/*  Audio Quality Lossless Badge */}
-              <div className="flex items-center justify-center gap-1.5 mt-1.5 text-[10px] font-semibold tracking-wider text-white/50 uppercase select-none">
-                <svg className="size-2.5 fill-current opacity-70" viewBox="0 0 24 24">
+              {/*  Audio Quality Lossless Badge - Bigger */}
+              <div className="flex items-center justify-center gap-2 mt-2 text-xs sm:text-[13px] font-bold tracking-widest text-white/60 uppercase select-none">
+                <svg className="size-3.5 fill-current opacity-80" viewBox="0 0 24 24">
                   <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.85.94-2.94-1 .04-2.18.66-2.88 1.48-.56.64-1.05 1.74-.92 2.81 1.11.09 2.23-.58 2.86-1.35z" />
                 </svg>
                 <span>HI-RES LOSSLESS · 24-BIT · 48 KHZ · FLAC · 1709 KBPS</span>
               </div>
 
-              {/* 6-Button Utility Row */}
-              <div className="flex items-center justify-center gap-5 mt-4 mb-1">
+              {/* 6-Button Utility Row - Bigger Icons and Targets */}
+              <div className="flex items-center justify-center gap-6 sm:gap-7 mt-5 mb-2">
                 {/* 1. Heart (Favorite) */}
                 <button
                   onClick={handleToggleFavorite}
-                  className="grid place-items-center size-8 rounded-full text-white/80 hover:text-white transition active:scale-90"
+                  className="grid place-items-center size-11 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition active:scale-90"
                   title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
                   aria-label="Favorite"
                 >
-                  <Heart size={19} className={isFavorite ? 'fill-red-500 text-red-500' : ''} />
+                  <Heart size={24} className={isFavorite ? 'fill-red-500 text-red-500' : ''} />
                 </button>
 
                 {/* 2. Lyrics Source / Settings */}
                 <button
                   onClick={() => setShowLyricsSettings(true)}
-                  className="grid place-items-center size-8 rounded-full text-white/80 hover:text-white transition active:scale-90"
+                  className="grid place-items-center size-11 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition active:scale-90"
                   title="Lyrics Settings & Providers"
                   aria-label="Lyrics Settings"
                 >
-                  <SquarePen size={19} />
+                  <SquarePen size={24} />
                 </button>
 
                 {/* 3. Download */}
                 <button
                   onClick={handleDownload}
-                  className="grid place-items-center size-8 rounded-full text-white/80 hover:text-white transition active:scale-90"
+                  className="grid place-items-center size-11 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition active:scale-90"
                   title="Download Track"
                   aria-label="Download"
                 >
-                  <Download size={19} />
+                  <Download size={24} />
                 </button>
 
                 {/* 4. Cast / Airplay (Listen Together) */}
                 <button
                   onClick={handleCast}
-                  className="grid place-items-center size-8 rounded-full text-white/80 hover:text-white transition active:scale-90"
+                  className="grid place-items-center size-11 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition active:scale-90"
                   title="Listen Together"
                   aria-label="Listen Together"
                 >
-                  <Cast size={19} />
+                  <Cast size={24} />
                 </button>
 
                 {/* 5. Volume Speaker inside White Ring Border with Interactive Popover Slider */}
                 <div className="relative group/vol">
                   <button
                     onClick={toggleMute}
-                    className="grid place-items-center size-8 rounded-full border border-white/50 text-white/80 hover:text-white hover:border-white transition active:scale-95"
+                    className="grid place-items-center size-11 rounded-full border-[1.5px] border-white/60 text-white hover:border-white hover:bg-white/10 transition active:scale-95"
                     title={muted ? 'Unmute' : 'Mute'}
                     aria-label="Volume"
                   >
-                    {muted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                    {muted || volume === 0 ? <VolumeX size={19} /> : <Volume2 size={19} />}
                   </button>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-black/85 backdrop-blur-md rounded-xl border border-white/10 opacity-0 pointer-events-none group-hover/vol:opacity-100 group-hover/vol:pointer-events-auto transition-opacity duration-150 flex flex-col items-center shadow-xl">
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-2.5 bg-black/90 backdrop-blur-md rounded-2xl border border-white/15 opacity-0 pointer-events-none group-hover/vol:opacity-100 group-hover/vol:pointer-events-auto transition-opacity duration-150 flex flex-col items-center shadow-2xl">
                     <input
                       type="range"
                       min={0}
@@ -771,7 +785,7 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                       step={0.01}
                       value={muted ? 0 : volume}
                       onChange={(e) => setVolume(Number(e.target.value))}
-                      className="w-20 h-1 accent-white cursor-pointer"
+                      className="w-24 h-1.5 accent-white cursor-pointer"
                       aria-label="Volume Slider"
                     />
                   </div>
@@ -780,27 +794,27 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                 {/* 6. Up Next / Queue Toggle */}
                 <button
                   onClick={() => togglePanel('queue')}
-                  className={`grid place-items-center size-8 rounded-full transition active:scale-90 ${
-                    showQueue ? 'text-white bg-white/20' : 'text-white/80 hover:text-white'
+                  className={`grid place-items-center size-11 rounded-full transition active:scale-90 ${
+                    showQueue ? 'text-white bg-white/20' : 'text-white/80 hover:text-white hover:bg-white/10'
                   }`}
                   title="Toggle Queue"
                   aria-label="Toggle Queue"
                 >
-                  <ListMusic size={19} />
+                  <ListMusic size={24} />
                 </button>
               </div>
 
-              {/* UP NEXT Badge */}
+              {/* UP NEXT Badge - Bigger */}
               <button
                 onClick={() => nextTrack && usePlayer.getState().next()}
-                className={`flex flex-col items-center justify-center mt-2 group text-center max-w-[320px] mx-auto select-none transition-transform active:scale-95 ${
+                className={`flex flex-col items-center justify-center mt-2.5 group text-center max-w-[380px] mx-auto select-none transition-transform active:scale-95 ${
                   nextTrack ? 'cursor-pointer' : 'cursor-default'
                 }`}
               >
-                <span className="text-[10px] font-bold tracking-widest text-white/50 group-hover:text-white/80 uppercase transition-colors">
+                <span className="text-xs font-black tracking-widest text-white/55 group-hover:text-white/90 uppercase transition-colors">
                   UP NEXT:
                 </span>
-                <span className="text-xs font-medium text-white/80 group-hover:text-white truncate max-w-[280px] mt-0.5 transition-colors">
+                <span className="text-sm sm:text-base font-semibold text-white/90 group-hover:text-white truncate max-w-[340px] mt-0.5 transition-colors">
                   {nextTrack
                     ? `${nextTrack.title} · ${nextTrack.artists?.map((a) => a.name).join(', ') || nextTrack.album?.name || ''}`
                     : 'AutoPlay Radio'}
