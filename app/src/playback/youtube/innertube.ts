@@ -52,15 +52,20 @@ async function innertubeFetch(input: RequestInfo | URL, init?: RequestInit): Pro
       headers.set(key, value);
     });
 
-    let body: BodyInit | null | undefined = init?.body;
-    if (body === undefined && request && method !== 'GET' && method !== 'HEAD') {
-      body = await request.text();
+    const hasBody = method !== 'GET' && method !== 'HEAD';
+    let body: BodyInit | undefined = undefined;
+    if (hasBody) {
+      if (init?.body !== undefined && init.body !== null) {
+        body = init.body;
+      } else if (request) {
+        body = await request.text();
+      }
     }
 
     return fetch(proxyUrl, {
       method,
       headers,
-      body: body ?? null,
+      ...(hasBody && body !== undefined ? { body } : {}),
       signal: init?.signal ?? request?.signal ?? null,
     });
   }
@@ -90,22 +95,29 @@ async function create(fetch: typeof globalThis.fetch = innertubeFetch): Promise<
     return new Function(`${data.output}\nreturn { ${properties.join(', ')} }`)();
   };
 
-  const firstRun = await isFirstRun();
+  let yt: Innertube;
   try {
-    const yt = await Innertube.create({
+    yt = await Innertube.create({
       cache: new UniversalCache(true),
       fetch,
       retrieve_player: true,
     });
-    const client = yt.session.context.client;
-    trackLog.i(
-      `InnerTube ready in ${Math.round(performance.now() - started)}ms ` +
-        `(${client.clientName} ${client.clientVersion}, player ${yt.session.player?.player_id ?? 'none'})`,
-    );
-    return yt;
   } catch (error) {
-    if (firstRun) indexedDB.deleteDatabase('youtubei.js');
-    trackLog.e(`InnerTube failed to start: ${String(error)}`);
-    throw error;
+    trackLog.w(`InnerTube player retrieval failed (${String(error)}), retrying with retrieve_player: false`);
+    try {
+      indexedDB.deleteDatabase('youtubei.js');
+    } catch {}
+    yt = await Innertube.create({
+      cache: new UniversalCache(true),
+      fetch,
+      retrieve_player: false,
+    });
   }
+
+  const client = yt.session.context.client;
+  trackLog.i(
+    `InnerTube ready in ${Math.round(performance.now() - started)}ms ` +
+      `(${client.clientName} ${client.clientVersion}, player ${yt.session.player?.player_id ?? 'none'})`,
+  );
+  return yt;
 }

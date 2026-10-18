@@ -54,7 +54,7 @@ export async function handleYoutubeProxy(req: IncomingMessage, res: ServerRespon
   for (const [key, value] of Object.entries(req.headers)) {
     if (!value) continue;
     const k = key.toLowerCase();
-    if (k === 'host' || k === 'connection' || k === 'origin' || k === 'referer' || k === 'content-length') continue;
+    if (k === 'host' || k === 'connection' || k === 'origin' || k === 'referer' || k === 'content-length' || k === 'accept-encoding') continue;
     headers[k] = Array.isArray(value) ? value.join(', ') : value;
   }
 
@@ -87,9 +87,15 @@ export async function handleYoutubeProxy(req: IncomingMessage, res: ServerRespon
 
     res.statusCode = upstream.status;
 
+    const hasEncoding = upstream.headers.has('content-encoding');
     for (const [key, value] of upstream.headers.entries()) {
       const k = key.toLowerCase();
       if (k.startsWith('access-control-')) continue;
+      // fetch() automatically decodes gzip/br/deflate bodies in Node.js.
+      // Forwarding content-encoding or the compressed content-length causes the
+      // client browser to attempt decompressing already uncompressed data, corrupting the stream.
+      if (k === 'content-encoding') continue;
+      if (hasEncoding && k === 'content-length') continue;
       res.setHeader(key, value);
     }
 
