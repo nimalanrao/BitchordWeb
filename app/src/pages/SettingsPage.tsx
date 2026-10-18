@@ -6,6 +6,7 @@ import { PrefetchLink } from '@/components/PrefetchLink';
 import { useParty } from '@/party/useParty';
 import { useHistorySettings } from '@/playback/historyReporting';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
+import { CustomDropdown } from '@/components/CustomDropdown';
 import { AppleMusicToggles, Toggle } from './IntegrationSettings';
 import { settingsUi } from './settingsStyles';
 
@@ -97,16 +98,18 @@ export default function SettingsPage() {
             checked={autoplay}
             onChange={setAutoplay}
           />
-          <label className={settingsUi.controlRow}>
+          <div className={settingsUi.controlRow}>
             <span>Crossfade</span>
-            <select className={settingsUi.select} value={crossfadeSec} onChange={(e) => setCrossfade(Number(e.currentTarget.value))}>
-              {CROSSFADE_CHOICES.map((seconds) => (
-                <option key={seconds} value={seconds}>
-                  {seconds === 0 ? 'Off' : `${seconds} seconds`}
-                </option>
-              ))}
-            </select>
-          </label>
+            <CustomDropdown
+              value={crossfadeSec}
+              onChange={setCrossfade}
+              ariaLabel="Crossfade duration"
+              options={CROSSFADE_CHOICES.map((seconds) => ({
+                value: seconds,
+                label: seconds === 0 ? 'Off' : `${seconds} seconds`,
+              }))}
+            />
+          </div>
         </section>
 
         <h2 className={settingsUi.sectionHeader}>Lyrics</h2>
