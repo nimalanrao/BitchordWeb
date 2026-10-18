@@ -7,6 +7,7 @@ import {
   ListMusic,
   Maximize,
   Minimize,
+  MoreHorizontal,
   Pause,
   Play,
   Repeat,
@@ -431,7 +432,21 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
   // Cinematic theme state
   const [spinning, setSpinning] = useState(false);
   const [showLyricsSettings, setShowLyricsSettings] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close more menu when clicking outside
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    window.addEventListener('pointerdown', handleClickOutside);
+    return () => window.removeEventListener('pointerdown', handleClickOutside);
+  }, [showMoreMenu]);
 
   // Favorites tracking (both signed in and guest local storage)
   const signedIn = useSignedIn();
@@ -799,83 +814,120 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                 );
               })()}
 
-              {/* 6-Button Utility Row - Bigger Icons and Targets */}
-              <div className="flex items-center justify-center gap-6 sm:gap-7 mt-5 mb-2">
-                {/* 1. Heart (Favorite) */}
+              {/* Utility Menu Trigger & Popover Menu */}
+              <div className="relative mt-5 mb-2 flex items-center justify-center" ref={moreMenuRef}>
                 <button
-                  onClick={handleToggleFavorite}
-                  className="grid place-items-center size-11 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition active:scale-90"
-                  title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-                  aria-label="Favorite"
-                >
-                  <Heart size={24} className={isFavorite ? 'fill-red-500 text-red-500' : ''} />
-                </button>
-
-                {/* 2. Lyrics Source / Settings */}
-                <button
-                  onClick={() => setShowLyricsSettings(true)}
-                  className="grid place-items-center size-11 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition active:scale-90"
-                  title="Lyrics Settings & Providers"
-                  aria-label="Lyrics Settings"
-                >
-                  <SquarePen size={24} />
-                </button>
-
-                {/* 3. Download */}
-                <button
-                  onClick={handleDownload}
-                  className="grid place-items-center size-11 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition active:scale-90"
-                  title="Download Track"
-                  aria-label="Download"
-                >
-                  <Download size={24} />
-                </button>
-
-                {/* 4. Cast / Airplay (Listen Together) */}
-                <button
-                  onClick={handleCast}
-                  className="grid place-items-center size-11 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition active:scale-90"
-                  title="Listen Together"
-                  aria-label="Listen Together"
-                >
-                  <Cast size={24} />
-                </button>
-
-                {/* 5. Volume Speaker inside White Ring Border with Interactive Popover Slider */}
-                <div className="relative group/vol">
-                  <button
-                    onClick={toggleMute}
-                    className="grid place-items-center size-11 rounded-full border-[1.5px] border-white/60 text-white hover:border-white hover:bg-white/10 transition active:scale-95"
-                    title={muted ? 'Unmute' : 'Mute'}
-                    aria-label="Volume"
-                  >
-                    {muted || volume === 0 ? <VolumeX size={19} /> : <Volume2 size={19} />}
-                  </button>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-2.5 bg-black/90 backdrop-blur-md rounded-2xl border border-white/15 opacity-0 pointer-events-none group-hover/vol:opacity-100 group-hover/vol:pointer-events-auto transition-opacity duration-150 flex flex-col items-center shadow-2xl">
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={muted ? 0 : volume}
-                      onChange={(e) => setVolume(Number(e.target.value))}
-                      className="w-24 h-1.5 accent-white cursor-pointer"
-                      aria-label="Volume Slider"
-                    />
-                  </div>
-                </div>
-
-                {/* 6. Up Next / Queue Toggle */}
-                <button
-                  onClick={() => togglePanel('queue')}
-                  className={`grid place-items-center size-11 rounded-full transition active:scale-90 ${
-                    showQueue ? 'text-white bg-white/20' : 'text-white/80 hover:text-white hover:bg-white/10'
+                  onClick={() => setShowMoreMenu((prev) => !prev)}
+                  className={`grid place-items-center size-12 rounded-full border transition-all duration-200 active:scale-90 ${
+                    showMoreMenu
+                      ? 'border-white bg-white text-black shadow-lg shadow-white/20'
+                      : 'border-white/20 bg-white/10 text-white/90 hover:text-white hover:bg-white/20 hover:border-white/40'
                   }`}
-                  title="Toggle Queue"
-                  aria-label="Toggle Queue"
+                  title="Player Actions & Menu"
+                  aria-label="More options"
+                  aria-expanded={showMoreMenu}
                 >
-                  <ListMusic size={24} />
+                  <MoreHorizontal size={26} />
                 </button>
+
+                {/* Animated Glassmorphic Popover Menu */}
+                {showMoreMenu && (
+                  <div
+                    className="absolute bottom-full mb-3 z-50 p-2.5 rounded-2xl bg-neutral-950/90 backdrop-blur-2xl border border-white/15 shadow-2xl flex items-center gap-3 animate-zoom pointer-events-auto"
+                    role="menu"
+                  >
+                    {/* 1. Heart (Favorite) */}
+                    <button
+                      onClick={handleToggleFavorite}
+                      className="grid place-items-center size-10 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                      title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+                      aria-label="Favorite"
+                      role="menuitem"
+                    >
+                      <Heart size={20} className={isFavorite ? 'fill-red-500 text-red-500' : ''} />
+                    </button>
+
+                    {/* 2. Lyrics Source / Settings */}
+                    <button
+                      onClick={() => {
+                        setShowLyricsSettings(true);
+                        setShowMoreMenu(false);
+                      }}
+                      className="grid place-items-center size-10 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                      title="Lyrics Settings & Providers"
+                      aria-label="Lyrics Settings"
+                      role="menuitem"
+                    >
+                      <SquarePen size={20} />
+                    </button>
+
+                    {/* 3. Download */}
+                    <button
+                      onClick={() => {
+                        handleDownload();
+                        setShowMoreMenu(false);
+                      }}
+                      className="grid place-items-center size-10 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                      title="Download Track"
+                      aria-label="Download"
+                      role="menuitem"
+                    >
+                      <Download size={20} />
+                    </button>
+
+                    {/* 4. Cast / Airplay (Listen Together) */}
+                    <button
+                      onClick={() => {
+                        handleCast();
+                        setShowMoreMenu(false);
+                      }}
+                      className="grid place-items-center size-10 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition active:scale-90"
+                      title="Listen Together"
+                      aria-label="Listen Together"
+                      role="menuitem"
+                    >
+                      <Cast size={20} />
+                    </button>
+
+                    {/* 5. Volume Speaker + Inline Slider */}
+                    <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-xl border border-white/10">
+                      <button
+                        onClick={toggleMute}
+                        className="text-white/80 hover:text-white transition active:scale-90"
+                        title={muted ? 'Unmute' : 'Mute'}
+                        aria-label="Volume"
+                      >
+                        {muted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                      </button>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={muted ? 0 : volume}
+                        onChange={(e) => setVolume(Number(e.target.value))}
+                        className="w-20 h-1 accent-white cursor-pointer"
+                        aria-label="Volume Slider"
+                      />
+                    </div>
+
+                    {/* 6. Up Next / Queue Toggle */}
+                    <button
+                      onClick={() => {
+                        togglePanel('queue');
+                        setShowMoreMenu(false);
+                      }}
+                      className={`grid place-items-center size-10 rounded-xl transition active:scale-90 ${
+                        showQueue ? 'text-white bg-white/25' : 'text-white/80 hover:text-white hover:bg-white/15'
+                      }`}
+                      title="Toggle Queue"
+                      aria-label="Toggle Queue"
+                      role="menuitem"
+                    >
+                      <ListMusic size={20} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* UP NEXT Badge - Bigger */}
