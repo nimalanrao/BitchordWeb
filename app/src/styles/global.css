@@ -350,12 +350,14 @@
   *::before,
   *::after {
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
   }
 
   html,
   body {
     margin: 0;
     height: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
@@ -365,6 +367,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    -webkit-touch-callout: none;
+    user-select: none;
     /* Apple's player is an app, not a document: no rubber-band on the page. */
     overscroll-behavior: none;
   }
@@ -389,6 +393,18 @@
     list-style: none;
   }
 
+  a,
+  button,
+  input,
+  textarea,
+  select,
+  [role='button'],
+  [role='tab'] {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    outline: none;
+  }
+
   a {
     color: inherit;
     text-decoration: none;
@@ -402,7 +418,6 @@
     padding: 0;
     margin: 0;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
   }
 
   button:disabled {
