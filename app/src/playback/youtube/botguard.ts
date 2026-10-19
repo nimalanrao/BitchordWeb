@@ -53,7 +53,8 @@ class BotguardService {
       'x-user-agent': 'grpc-web-javascript/0.1',
     };
 
-    const challengeResponse = await fetch(buildURL('Create', true), {
+    const createUrl = `/api/yt-proxy?url=${encodeURIComponent(buildURL('Create', true))}`;
+    const challengeResponse = await fetch(createUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify([REQUEST_KEY]),

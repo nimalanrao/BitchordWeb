@@ -71,17 +71,19 @@ async function handleYoutubeProxy(request: Request): Promise<Response> {
     headers.set(key, value);
   }
 
-  // Always use a valid Chrome desktop user agent
-  headers.set('user-agent', CHROME_UA);
+  // Preserve client user-agent if provided; otherwise fallback to desktop Chrome
+  if (!headers.has('user-agent')) {
+    headers.set('user-agent', CHROME_UA);
+  }
 
   if (parsed.hostname.includes('youtube.com')) {
     headers.set('origin', `https://${parsed.hostname}`);
     headers.set('referer', `https://${parsed.hostname}/`);
     headers.set('x-origin', `https://${parsed.hostname}`);
   } else if (parsed.hostname.includes('googlevideo.com')) {
-    // For direct URLs minted for VISIONOS, googlevideo refuses Origin/Referer (403).
-    // For other clients (such as SABR), it requires https://www.youtube.com.
-    if (!targetUrl.includes('c=VISIONOS')) {
+    // For direct media URLs (videoplayback), googlevideo refuses Origin/Referer (403).
+    // For SABR streaming requests, it requires https://www.youtube.com.
+    if (targetUrl.includes('sabr=1')) {
       headers.set('origin', 'https://www.youtube.com');
       headers.set('referer', 'https://www.youtube.com/');
     } else {
