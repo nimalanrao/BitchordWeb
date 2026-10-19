@@ -4,6 +4,9 @@ export const PRODUCTION_ORIGIN = 'https://bitchord.in';
 /** The same site at its Cloudflare Pages address (the production branch's deploy). */
 const PAGES_ORIGIN = 'https://bitchord-8bw.pages.dev';
 
+/** The user's deployed Cloudflare Workers address. */
+const WORKERS_ORIGIN = 'https://bitchordweb.nithyananthanimalan.workers.dev';
+
 /** The Vite dev server (web/app/vite.config.ts pins the port). */
 const DEV_ORIGIN = 'http://localhost:5173';
 
@@ -19,7 +22,7 @@ const DEV_ORIGIN = 'http://localhost:5173';
  */
 export const SITE_ORIGINS: string[] = (
   process.env.BITCHORD_SITE_ORIGINS ??
-  [PRODUCTION_ORIGIN, PAGES_ORIGIN, ...(process.env.BITCHORD_STORE_BUILD === '1' ? [] : [DEV_ORIGIN])].join(',')
+  [PRODUCTION_ORIGIN, PAGES_ORIGIN, WORKERS_ORIGIN, ...(process.env.BITCHORD_STORE_BUILD === '1' ? [] : [DEV_ORIGIN])].join(',')
 )
   .split(',')
   .map((o) => o.trim().replace(/\/+$/, ''))
