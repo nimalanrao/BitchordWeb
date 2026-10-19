@@ -13,7 +13,7 @@ import { botguard } from './botguard';
  * "The page needs to be reloaded" and WEB_EMBEDDED "This video is unavailable",
  * so those two are left out. googlevideo's own SABR example uses VISIONOS.
  */
-export const CLIENT_ORDER = ['VISIONOS', 'ANDROID', 'IOS', 'YTMUSIC', 'WEB', 'MWEB'] as const;
+export const CLIENT_ORDER = ['YTMUSIC', 'WEB', 'VISIONOS', 'ANDROID', 'IOS', 'MWEB'] as const;
 export type PlayerClientName = (typeof CLIENT_ORDER)[number];
 
 /**
@@ -37,7 +37,7 @@ async function playerRequestToken(yt: Innertube, client: PlayerClientName): Prom
 }
 
 /** StreamResolver: how many clients are worth trying for one track. */
-export const CLIENT_ATTEMPTS = 4;
+export const CLIENT_ATTEMPTS = CLIENT_ORDER.length;
 /** InnerTubeXResolver.EXCLUDE_MS: a client that refused a track sits out for this long. */
 const EXCLUDE_MS = 10 * 60_000;
 /** StreamResolver.UNPLAYABLE_TTL_MS: a settled "no" isn't asked again for this long. */

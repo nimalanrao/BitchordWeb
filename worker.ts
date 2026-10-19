@@ -90,6 +90,12 @@ async function handleYoutubeProxy(request: Request): Promise<Response> {
       headers.delete('origin');
       headers.delete('referer');
     }
+  } else if (parsed.hostname.includes('apple.com')) {
+    headers.set('origin', 'https://music.apple.com');
+    headers.set('referer', 'https://music.apple.com/');
+  } else if (parsed.hostname.includes('musixmatch.com')) {
+    headers.set('origin', 'https://www.musixmatch.com');
+    headers.set('referer', 'https://www.musixmatch.com/');
   }
 
   try {

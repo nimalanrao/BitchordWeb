@@ -89,11 +89,22 @@ class BotguardService {
       body: JSON.stringify([REQUEST_KEY, botguardResponse]),
     });
     if (!integrityFetch.ok) throw new Error(`GenerateIT answered ${integrityFetch.status}`);
-    const [integrityToken, ttlSeconds] = (await integrityFetch.json()) as [string?, number?];
-    if (!integrityToken) throw new Error(`No integrity token (interpreter ${challenge.interpreterHash})`);
+    const rawResult = (await integrityFetch.json()) as unknown[];
+    const integrityToken = (
+      typeof rawResult?.[0] === 'string' && rawResult[0].length > 20 ? rawResult[0] :
+      typeof rawResult?.[3] === 'string' && rawResult[3].length > 20 ? rawResult[3] :
+      (Array.isArray(rawResult) ? rawResult.find((x): x is string => typeof x === 'string' && x.length > 20) : undefined)
+    ) ?? undefined;
+    const ttlSeconds = (
+      typeof rawResult?.[1] === 'number' ? rawResult[1] :
+      (Array.isArray(rawResult) ? rawResult.find((x): x is number => typeof x === 'number') : undefined)
+    ) ?? (DEFAULT_TTL_MS / 1000);
+    if (!integrityToken) {
+      throw new Error(`No integrity token (interpreter ${challenge.interpreterHash}): ${JSON.stringify(rawResult)?.slice(0, 80)}`);
+    }
 
     this.minter = await WebPoMinter.create({ integrityToken }, webPoSignalOutput);
-    this.expiresAt = Date.now() + (typeof ttlSeconds === 'number' ? ttlSeconds * 1000 : DEFAULT_TTL_MS);
+    this.expiresAt = Date.now() + ttlSeconds * 1000;
     this.tokens.clear();
     trackLog.i(`BotGuard ready; integrity token valid for ${Math.round((this.expiresAt - Date.now()) / 60_000)} min`);
   }
