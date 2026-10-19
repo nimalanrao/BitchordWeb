@@ -12,7 +12,7 @@
     "dev:ext:firefox": "pnpm --filter @bitchord/extension dev:firefox",
     "build": "pnpm -r build",
     "build:site": "pnpm --filter @bitchord/extension package && pnpm --filter @bitchord/app build",
-    "deploy": "npx wrangler pages deploy app/dist --project-name=bitchordweb",
+    "deploy": "npx wrangler deploy",
     "start": "node scripts/prod-server.mjs",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
