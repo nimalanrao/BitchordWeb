@@ -13,6 +13,9 @@ import { PlayerBar } from './PlayerBar';
 import { SidePanel } from './SidePanel';
 import { Sidebar } from './Sidebar';
 
+import { useAccessGate } from '@/state/accessGate';
+import { AccessGateModal } from './AccessGateModal';
+
 // It carries am-lyrics; loaded the first time it opens, as the side panel's lyrics are.
 const FullScreenPlayer = lazy(() => import('./FullScreenPlayer').then((m) => ({ default: m.FullScreenPlayer })));
 
@@ -38,6 +41,7 @@ export function AppShell() {
       setShowFullScreen(true);
     }
   }, [fullScreen]);
+  const isAccessGranted = useAccessGate((s) => s.isGranted);
   const location = useLocation();
 
   // Dynamic background setting and now playing cover palette
@@ -135,6 +139,7 @@ export function AppShell() {
         <PlayerBar />
         <SidePanel />
       </div>
+      {!isAccessGranted && <AccessGateModal />}
       {showFullScreen && (
         <Suspense fallback={null}>
           <FullScreenPlayer

@@ -37,20 +37,72 @@ function useReducedMotion(): boolean {
  * Blob 2: Bottom-left
  * Blob 3: Bottom-right
  */
-const BLOBS = [
-  { x: 0.15, y: 0.2, phase: [0.0, 1.2, 2.5] as [number, number, number], speed: [0.09, 0.08, 0.06] as [number, number, number] },
-  { x: 0.85, y: 0.25, phase: [1.8, 3.4, 0.7] as [number, number, number], speed: [0.07, 0.10, 0.07] as [number, number, number] },
-  { x: 0.2, y: 0.82, phase: [3.1, 0.5, 4.2] as [number, number, number], speed: [0.10, 0.07, 0.05] as [number, number, number] },
-  { x: 0.82, y: 0.8, phase: [4.5, 2.7, 1.9] as [number, number, number], speed: [0.08, 0.09, 0.08] as [number, number, number] },
-];
+/**
+ * 30 ultra-optimized mesh nodes randomly and evenly dispersed everywhere
+ * across the entire viewport. Each node is bound to one of the 3 most common colors.
+ */
+const NUM_BLOBS = 30;
 
-/** Where every blob is at [seconds]: drifting smoothly in live motion */
-function blobsAt(seconds: number): [number, number, number][] {
-  return BLOBS.map(({ x, y, phase: [px, py, pr], speed: [sx, sy, sr] }) => [
-    x + 0.18 * Math.sin(seconds * sx + px),
-    y + 0.20 * Math.cos(seconds * sy + py),
-    0.65 * (0.85 + 0.2 * Math.sin(seconds * sr + pr)),
-  ]);
+interface MeshBlobNode {
+  x: number;
+  y: number;
+  colorIndex: number; // 0, 1, or 2 (from the 3 dominant colors)
+  radius: number;
+  phase: [number, number, number];
+  speed: [number, number, number];
+}
+
+// Pseudo-random deterministic generator for consistent high-distribution dispersal
+function createDeterministicBlobs(): MeshBlobNode[] {
+  const nodes: MeshBlobNode[] = [];
+  for (let i = 0; i < NUM_BLOBS; i++) {
+    // Disperse across 6x5 grid with random jitter
+    const col = i % 6;
+    const row = Math.floor(i / 6);
+    const baseX = (col + 0.5) / 6;
+    const baseY = (row + 0.5) / 5;
+    // Jitter coordinates within cell
+    const jitterX = ((Math.sin(i * 12.9898) * 43758.5453) % 1) * 0.12 - 0.06;
+    const jitterY = ((Math.cos(i * 78.233) * 43758.5453) % 1) * 0.12 - 0.06;
+    
+    nodes.push({
+      x: Math.max(0.05, Math.min(0.95, baseX + jitterX)),
+      y: Math.max(0.05, Math.min(0.95, baseY + jitterY)),
+      colorIndex: i % 3,
+      radius: 0.65 + 0.25 * (Math.sin(i * 3.7) * 0.5 + 0.5), // Extra wide radius for max blur overlap
+      phase: [i * 0.73, i * 1.31, i * 0.47],
+      speed: [0.035 + (i % 5) * 0.008, 0.030 + (i % 7) * 0.007, 0.025 + (i % 3) * 0.006],
+    });
+  }
+  return nodes;
+}
+
+const BLOBS = createDeterministicBlobs();
+
+/** Where every blob is at [seconds]: drifting smoothly in live motion with maximal blur radius */
+function blobsAt(seconds: number): Float32Array {
+  // Packed as x, y, radius, colorIndex (vec4 per node for fast WebGL uniform upload)
+  const data = new Float32Array(NUM_BLOBS * 4);
+  for (let i = 0; i < NUM_BLOBS; i++) {
+    const b = BLOBS[i]!;
+    const px = b.phase[0];
+    const py = b.phase[1];
+    const pr = b.phase[2];
+    const sx = b.speed[0];
+    const sy = b.speed[1];
+    const sr = b.speed[2];
+
+    const x = b.x + 0.12 * Math.sin(seconds * sx + px);
+    const y = b.y + 0.14 * Math.cos(seconds * sy + py);
+    const r = b.radius * (0.85 + 0.15 * Math.sin(seconds * sr + pr));
+
+    const offset = i * 4;
+    data[offset] = x;
+    data[offset + 1] = y;
+    data[offset + 2] = r;
+    data[offset + 3] = b.colorIndex;
+  }
+  return data;
 }
 
 function mix(from: Rgb[], to: Rgb[], k: number): Rgb[] {
@@ -68,18 +120,17 @@ interface Renderer {
 }
 
 /*
- * The mesh, worked out for every pixel of the screen: each blob a soft
- * Gaussian, the colours blended in linear light (so two colours meet through
- * a clean mid-tone, not a muddy one), then a triangular dither of under one
- * 8-bit step that changes every frame.
+ * Ultra-optimized WebGL Mesh shader:
+ * Evaluates 30 dispersed mesh nodes smoothly blended with wide Gaussian falloff (max blur)
+ * and dithered to avoid color banding.
  */
 const VERTEX = `attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }`;
 const FRAGMENT = `
 precision highp float;
 uniform vec2 uRes;
 uniform vec3 uBase;
-uniform vec3 uCol[4];
-uniform vec3 uBlob[4];
+uniform vec3 uCol[3];
+uniform vec4 uBlob[30];
 uniform float uFrame;
 
 float hash(vec2 p) {
@@ -91,16 +142,23 @@ float hash(vec2 p) {
 void main() {
   vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
   float side = max(uRes.x, uRes.y);
-  // Base ambient foundation
-  vec3 sum = pow(uBase * 0.7, vec3(2.2)) * 0.05;
-  float weight = 0.05;
-  for (int i = 0; i < 4; i++) {
-    float d = distance(px, uBlob[i].xy * uRes) / (uBlob[i].z * side);
-    // Smooth, luminous Gaussian blend across the screen matching Apple Music
-    float w = exp(-3.0 * d * d);
-    sum += pow(uCol[i], vec3(2.2)) * w;
+  
+  // Ambient foundation with linear gamma
+  vec3 sum = pow(uBase * 0.7, vec3(2.2)) * 0.08;
+  float weight = 0.08;
+
+  // Evaluate 30 blurred mesh nodes
+  for (int i = 0; i < 30; i++) {
+    vec4 b = uBlob[i];
+    float d = distance(px, b.xy * uRes) / (b.z * side);
+    // Soft wide Gaussian curve (maximum blur blend)
+    float w = exp(-1.85 * d * d);
+    int colIdx = int(b.w + 0.5);
+    vec3 col = colIdx == 0 ? uCol[0] : (colIdx == 1 ? uCol[1] : uCol[2]);
+    sum += pow(col, vec3(2.2)) * w;
     weight += w;
   }
+
   vec3 color = pow(sum / weight, vec3(1.0 / 2.2));
   color += (hash(gl_FragCoord.xy) + hash(gl_FragCoord.yx + 17.0) - 1.0) / 255.0;
   gl_FragColor = vec4(color, 1.0);
@@ -138,8 +196,8 @@ function webglRenderer(canvas: HTMLCanvasElement): Renderer | null {
 
   return {
     draw(cells, seconds) {
-      // One device pixel per CSS pixel at most: the mesh has no detail a denser canvas would show.
-      const scale = Math.min(window.devicePixelRatio || 1, 1);
+      // 0.75x resolution buffer stretched by GPU hardware filter for ultra-soft max blur and 60fps performance
+      const scale = 0.75;
       const width = Math.max(1, Math.round(canvas.clientWidth * scale));
       const height = Math.max(1, Math.round(canvas.clientHeight * scale));
       if (canvas.width !== width || canvas.height !== height) {
@@ -149,8 +207,8 @@ function webglRenderer(canvas: HTMLCanvasElement): Renderer | null {
       gl.viewport(0, 0, width, height);
       gl.uniform2f(uRes!, width, height);
       gl.uniform3fv(uBase!, average(cells).map((v) => v / 255));
-      gl.uniform3fv(uCol!, cells.flatMap((c) => c.map((v) => v / 255)));
-      gl.uniform3fv(uBlob!, blobsAt(seconds).flat());
+      gl.uniform3fv(uCol!, cells.slice(0, 3).flatMap((c) => c.map((v) => v / 255)));
+      gl.uniform4fv(uBlob!, blobsAt(seconds));
       gl.uniform1f(uFrame!, (frame = (frame + 1) % 1024));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     },
@@ -180,17 +238,21 @@ function canvasRenderer(canvas: HTMLCanvasElement): Renderer | null {
       context.fillStyle = css(average(cells), 1);
       context.fillRect(0, 0, SMALL_WIDTH, SMALL_HEIGHT);
       const side = Math.max(SMALL_WIDTH, SMALL_HEIGHT);
-      blobsAt(seconds).forEach(([bx, by, reach], i) => {
-        const x = bx * SMALL_WIDTH;
-        const y = by * SMALL_HEIGHT;
-        const color = cells[i]!;
+      const blobData = blobsAt(seconds);
+      for (let i = 0; i < NUM_BLOBS; i++) {
+        const offset = i * 4;
+        const x = blobData[offset]! * SMALL_WIDTH;
+        const y = blobData[offset + 1]! * SMALL_HEIGHT;
+        const reach = blobData[offset + 2]!;
+        const colIdx = Math.round(blobData[offset + 3]!);
+        const color = cells[colIdx] || cells[0]!;
         const gradient = context.createRadialGradient(x, y, 0, x, y, reach * side);
-        gradient.addColorStop(0, css(color, 0.9));
-        gradient.addColorStop(0.55, css(color, 0.35));
+        gradient.addColorStop(0, css(color, 0.7));
+        gradient.addColorStop(0.55, css(color, 0.25));
         gradient.addColorStop(1, css(color, 0));
         context.fillStyle = gradient;
         context.fillRect(0, 0, SMALL_WIDTH, SMALL_HEIGHT);
-      });
+      }
     },
     dispose() {},
   };

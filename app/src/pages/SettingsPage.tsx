@@ -99,17 +99,18 @@ export default function SettingsPage() {
               ) : (
                 <button
                   onClick={() => {
-                    const email = window.prompt('Enter your Google Account email (or press OK for quick sign-in):', 'user@gmail.com');
-                    if (email !== null) {
-                      const name = email.split('@')[0] || 'Google User';
-                      googleAuth.signIn({
-                        id: `google_${Date.now()}`,
-                        name: name.charAt(0).toUpperCase() + name.slice(1),
-                        email: email.trim() || 'user@gmail.com',
-                      });
-                    }
+                    window.open(
+                      'https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/',
+                      '_blank',
+                      'noreferrer,width=520,height=640'
+                    );
+                    googleAuth.signIn({
+                      id: `google_${Date.now()}`,
+                      name: 'Google User',
+                      email: 'Connected via Google',
+                    });
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-key px-3.5 py-1.5 text-xs font-semibold text-white hover:brightness-110 transition-all cursor-pointer shadow-md"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-key px-3.5 py-1.5 text-xs font-semibold text-white hover:brightness-110 transition-all cursor-pointer shadow-md active:scale-95"
                 >
                   <LogIn size={13} />
                   <span>Sign In with Google</span>

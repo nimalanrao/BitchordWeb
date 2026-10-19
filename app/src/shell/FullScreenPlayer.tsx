@@ -61,7 +61,7 @@ import { useUi } from '@/state/ui';
 import { useHasVideo, useVideo } from '@/state/video';
 import { Credits, PageLink, pageLink } from './Lcd';
 import { CustomCoverModal } from './CustomCoverModal';
-import { LyricsPanel, ProviderPicker } from './LyricsPanel';
+import { LyricsPanel, ProviderPicker, toggleLyricsTranslation, toggleLyricsRomanization } from './LyricsPanel';
 import { LyricsSettings } from './LyricsSettings';
 import { MeshBackdrop } from './MeshBackdrop';
 import { albumPageFor } from './nowPlayingLinks';
@@ -805,33 +805,13 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
   };
 
   const handleToggleTranslation = () => {
-    // Find <am-lyrics> in the DOM and trigger translation toggle
-    const amLyrics = document.querySelector('am-lyrics') as (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
-    if (amLyrics?.shadowRoot) {
-      const translateBtn = amLyrics.shadowRoot.querySelector('button[title="Toggle Translation"]') as HTMLButtonElement | null;
-      if (translateBtn) {
-        translateBtn.click();
-        const willBeActive = !translateBtn.classList.contains('active');
-        showToast(willBeActive ? 'Translation enabled' : 'Translation disabled');
-        return;
-      }
-    }
-    showToast('Lyrics translation toggled');
+    void toggleLyricsTranslation();
+    showToast('Translation toggled');
   };
 
   const handleToggleRomanization = () => {
-    // Find <am-lyrics> in the DOM and trigger romanization toggle
-    const amLyrics = document.querySelector('am-lyrics') as (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
-    if (amLyrics?.shadowRoot) {
-      const romanizeBtn = amLyrics.shadowRoot.querySelector('button[title="Toggle Romanization"]') as HTMLButtonElement | null;
-      if (romanizeBtn) {
-        romanizeBtn.click();
-        const willBeActive = !romanizeBtn.classList.contains('active');
-        showToast(willBeActive ? 'Romanization enabled' : 'Romanization disabled');
-        return;
-      }
-    }
-    showToast('Lyrics romanization toggled');
+    void toggleLyricsRomanization();
+    showToast('Romanization toggled');
   };
 
   const handleShareSong = async () => {
@@ -985,37 +965,25 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
         onPointerDown={wake}
         onKeyDown={wake}
       >
-        {/* 1. Ambient Blurred Artwork Background with Dominant Color Fill (Crossfades smoothly on song change) */}
+        {/* 1. Ambient Blurred Live Mesh Background using the 30-node ultra-blurred mesh with dominant color tint */}
         <div className="absolute inset-0 size-full overflow-hidden pointer-events-none -z-1">
-          {customCover?.type === 'image' ? (
-            <img
-              key={`ambient-blur-custom-${customCover.url}`}
-              src={customCover.url}
-              alt=""
-              className="absolute inset-0 size-full object-cover object-center blur-[90px] rotate-90 brightness-75 contrast-125 saturate-150 animate-crossfade"
-            />
-          ) : nowPlaying.artworkUrl ? (
-            <img
-              key={`ambient-blur-${nowPlaying.artworkUrl}`}
-              src={sizedArtwork(nowPlaying.artworkUrl, 400)}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="absolute inset-0 size-full object-cover object-center blur-[90px] rotate-90 brightness-75 contrast-125 saturate-150 animate-crossfade"
-            />
-          ) : null}
-          {/* Most used artwork color tint over the right side, darkened for optimal lyric readability */}
+          <MeshBackdrop
+            artworkUrl={customCover?.type === 'image' ? customCover.url : nowPlaying.artworkUrl}
+            playing={playing}
+          />
+          {/* Subtle gradient on the right side preserving the glowing colors while keeping lyrics 100% legible */}
           {dominantRgb ? (
             <div
               className="absolute inset-y-0 right-0 w-full md:w-3/5 pointer-events-none transition-all duration-1000 ease-in-out"
               style={{
-                background: `linear-gradient(to right, transparent 0%, rgba(${dominantRgb[0]}, ${dominantRgb[1]}, ${dominantRgb[2]}, 0.55) 40%, rgba(${Math.round(dominantRgb[0] * 0.4)}, ${Math.round(dominantRgb[1] * 0.4)}, ${Math.round(dominantRgb[2] * 0.4)}, 0.88) 100%)`,
+                background: `linear-gradient(to right, transparent 0%, rgba(${dominantRgb[0]}, ${dominantRgb[1]}, ${dominantRgb[2]}, 0.25) 40%, rgba(${Math.round(dominantRgb[0] * 0.3)}, ${Math.round(dominantRgb[1] * 0.3)}, ${Math.round(dominantRgb[2] * 0.3)}, 0.65) 100%)`,
               }}
             />
           ) : (
-            <div className="absolute inset-0 bg-black/40 transition-opacity duration-700" />
+            <div className="absolute inset-0 bg-black/25 transition-opacity duration-700" />
           )}
-          {/* Deep dark tone overlay ensuring lyrics stay 100% crisp and readable */}
-          <div className="absolute inset-0 bg-black/35 pointer-events-none" />
+          {/* Ambient vignette and gentle darkening so white text and controls pop */}
+          <div className="absolute inset-0 bg-black/20 pointer-events-none" />
         </div>
 
         {/* 2. Left Artwork Canvas - Desktop only (Fit to screen on the left half) */}
@@ -1456,7 +1424,27 @@ export function FullScreenPlayer({ isClosing = false, onClosed }: FullScreenPlay
                     </div>
                   </button>
 
-                  <div className="flex items-center gap-2 flex-none">
+                  <div className="flex items-center gap-1.5 flex-none">
+                    {panel === 'lyrics' && (
+                      <>
+                        <button
+                          onClick={() => void toggleLyricsTranslation()}
+                          className="grid place-items-center size-8 rounded-full bg-white/10 text-white/80 hover:text-white hover:bg-white/20 active:scale-90 transition-transform cursor-pointer"
+                          aria-label="Translate lyrics"
+                          title="Translate lyrics"
+                        >
+                          <Languages size={16} />
+                        </button>
+                        <button
+                          onClick={() => void toggleLyricsRomanization()}
+                          className="grid place-items-center size-8 rounded-full bg-white/10 text-white/80 hover:text-white hover:bg-white/20 active:scale-90 transition-transform cursor-pointer"
+                          aria-label="Romanize lyrics"
+                          title="Romanize lyrics"
+                        >
+                          <Speech size={16} />
+                        </button>
+                      </>
+                    )}
                     <button
                       onClick={handleToggleFavorite}
                       className={`grid place-items-center size-8 rounded-full transition-transform active:scale-90 cursor-pointer ${

@@ -175,11 +175,6 @@ export function CustomCoverModal({
           </button>
         </div>
 
-        {/* Informational Subtitle */}
-        <p className="text-xs text-white/65 leading-relaxed">
-          Upload an image or animated video. Images are <span className="text-white font-medium">automatically 1:1 center-cropped</span> without stretching.
-        </p>
-
         {/* Drag and Drop Zone & 1:1 Preview Box */}
         <div
           onDragOver={handleDragOver}
@@ -205,7 +200,7 @@ export function CustomCoverModal({
             {isProcessing ? (
               <div className="flex flex-col items-center justify-center gap-2.5 p-4 text-center">
                 <Loader2 size={32} className="animate-spin text-white" />
-                <span className="text-xs font-medium text-white/80">Cropping to 1:1 Square...</span>
+                <span className="text-xs font-medium text-white/80">Processing...</span>
               </div>
             ) : activeDisplayUrl ? (
               <>
@@ -238,9 +233,8 @@ export function CustomCoverModal({
           {/* Prompt text */}
           <div className="text-center">
             <p className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">
-              {isDragging ? 'Drop file to upload' : 'Click to browse or drag & drop'}
+              {isDragging ? 'Drop to upload' : 'Upload or drag an image'}
             </p>
-            <p className="text-[11px] text-white/50 mt-0.5">Supports JPG, PNG, WEBP, MP4, WebM</p>
           </div>
         </div>
 

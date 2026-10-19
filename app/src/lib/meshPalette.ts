@@ -23,8 +23,8 @@ function shape([r, g, b]: Rgb): Rgb {
 }
 
 /**
- * Extracts 4 distinct, prominent colors from the artwork and places them in
- * 4 random/dispersed spots across the screen with 100% soft live blur.
+ * Extracts the 3 most common, dominant colors from the artwork and shapes them
+ * with rich saturation and balanced luminance.
  */
 async function measure(url: string): Promise<Rgb[]> {
   const image = new Image();
@@ -34,59 +34,86 @@ async function measure(url: string): Promise<Rgb[]> {
   image.src = artworkAtPixels(url, 60);
   await image.decode();
 
-  const side = 24;
+  const side = 28;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = side;
   const context = canvas.getContext('2d', { willReadFrequently: true })!;
   context.drawImage(image, 0, 0, side, side);
   const { data } = context.getImageData(0, 0, side, side);
 
-  // Group pixels into color buckets and find distinct color clusters
-  const candidates: { rgb: Rgb; sat: number; lum: number; count: number }[] = [];
+  // Group pixels into 4-bit quantized color bins to find the most common color clusters
+  const buckets = new Map<string, { rSum: number; gSum: number; bSum: number; count: number }>();
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i]!;
     const g = data[i + 1]!;
     const b = data[i + 2]!;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
+    const a = data[i + 3]!;
+    if (a < 128) continue;
+
     const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    const sat = max === 0 ? 0 : (max - min) / max;
-    if (lum > 0.03 && lum < 0.95) {
-      candidates.push({ rgb: [r, g, b], sat, lum, count: 1 });
+    // Exclude near-black and washed-out pure white
+    if (lum < 0.04 || lum > 0.96) continue;
+
+    // Quantize to 32-step buckets for cluster density
+    const qr = Math.floor(r / 24) * 24;
+    const qg = Math.floor(g / 24) * 24;
+    const qb = Math.floor(b / 24) * 24;
+    const key = `${qr},${qg},${qb}`;
+
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.rSum += r;
+      existing.gSum += g;
+      existing.bSum += b;
+      existing.count++;
+    } else {
+      buckets.set(key, { rSum: r, gSum: g, bSum: b, count: 1 });
     }
   }
 
-  // Sort candidates prioritizing high saturation and contrast
-  candidates.sort((a, b) => (b.sat * 2 + b.lum) - (a.sat * 2 + a.lum));
+  // Convert buckets to candidates sorted strictly by most common (frequency count)
+  const candidates = Array.from(buckets.values())
+    .map((b) => {
+      const rgb: Rgb = [
+        Math.round(b.rSum / b.count),
+        Math.round(b.gSum / b.count),
+        Math.round(b.bSum / b.count),
+      ];
+      const max = Math.max(...rgb);
+      const min = Math.min(...rgb);
+      const sat = max === 0 ? 0 : (max - min) / max;
+      return { rgb, count: b.count, sat };
+    })
+    // Weight by popularity and slight saturation bonus to avoid dull greys
+    .sort((a, b) => b.count * (1 + b.sat * 1.5) - a.count * (1 + a.sat * 1.5));
 
-  // Pick 4 maximally distinct colors
+  // Pick 3 most common, distinct colors
   const picked: Rgb[] = [];
   for (const c of candidates) {
-    if (picked.length >= 4) break;
+    if (picked.length >= 3) break;
     const isDistinct = picked.every((p) => {
       const dr = p[0] - c.rgb[0];
       const dg = p[1] - c.rgb[1];
       const db = p[2] - c.rgb[2];
-      return Math.sqrt(dr * dr + dg * dg + db * db) > 55;
+      return Math.sqrt(dr * dr + dg * dg + db * db) > 42;
     });
     if (isDistinct) {
       picked.push(shape(c.rgb));
     }
   }
 
-  // Curated dark ambient aesthetic fallback palette (warm red/coral, deep blue/cyan, violet/magenta, deep emerald)
+  // Curated fallback palette (warm amber/coral, deep cobalt/indigo, rich amethyst)
   const defaultColors: Rgb[] = [
-    [155, 32, 58],   // Crimson/Coral
-    [26, 68, 160],   // Deep Indigo/Blue
-    [135, 38, 145],  // Purple/Magenta
-    [25, 115, 110],  // Cyan/Teal
+    [180, 52, 45],
+    [32, 75, 165],
+    [140, 45, 130],
   ].map((c) => shape(c as Rgb));
 
-  while (picked.length < 4) {
+  while (picked.length < 3) {
     picked.push(defaultColors[picked.length % defaultColors.length]!);
   }
 
-  return picked.slice(0, 4);
+  return picked.slice(0, 3);
 }
 
 export function meshPalette(url: string): Promise<Rgb[]> {

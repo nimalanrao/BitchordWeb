@@ -12,7 +12,7 @@ import { useLyrics, useLyricsUi } from '@/lyrics/useLyrics';
 import { getAudio, usePlayer } from '@/state/player';
 import { LyricsSettings } from './LyricsSettings';
 
-type AmLyricsElement = HTMLElement & {
+export type AmLyricsElement = HTMLElement & {
   currentTime: number;
   ttml?: string;
   interpolate: boolean;
@@ -20,7 +20,47 @@ type AmLyricsElement = HTMLElement & {
   highlightColor: string;
   fontFamily?: string;
   updateComplete?: Promise<unknown>;
+  showTranslation?: boolean;
+  showRomanization?: boolean;
+  toggleTranslation?: () => Promise<void>;
+  toggleRomanization?: () => Promise<void>;
 };
+
+export async function toggleLyricsTranslation() {
+  const elements = Array.from(document.querySelectorAll<AmLyricsElement>('am-lyrics'));
+  for (const el of elements) {
+    try {
+      if (typeof el.toggleTranslation === 'function') {
+        await el.toggleTranslation();
+      } else {
+        const btn = el.shadowRoot?.querySelector('button[title="Toggle Translation"]') as HTMLButtonElement | null;
+        btn?.click();
+      }
+    } catch (err) {
+      console.warn('Error toggling translation:', err);
+      const btn = el.shadowRoot?.querySelector('button[title="Toggle Translation"]') as HTMLButtonElement | null;
+      btn?.click();
+    }
+  }
+}
+
+export async function toggleLyricsRomanization() {
+  const elements = Array.from(document.querySelectorAll<AmLyricsElement>('am-lyrics'));
+  for (const el of elements) {
+    try {
+      if (typeof el.toggleRomanization === 'function') {
+        await el.toggleRomanization();
+      } else {
+        const btn = el.shadowRoot?.querySelector('button[title="Toggle Romanization"]') as HTMLButtonElement | null;
+        btn?.click();
+      }
+    } catch (err) {
+      console.warn('Error toggling romanization:', err);
+      const btn = el.shadowRoot?.querySelector('button[title="Toggle Romanization"]') as HTMLButtonElement | null;
+      btn?.click();
+    }
+  }
+}
 
 /**
  * am-lyrics' own footer offers to fetch from its own providers; ours decide
@@ -304,17 +344,44 @@ export function ProviderPicker({
         <span>{label}</span>
         <ChevronDown size={14} />
       </button>
-      <button
-        className={
-          full
-            ? 'grid size-8 place-items-center rounded-[10px] text-white/80 hover:text-white hover:bg-white/15 transition'
-            : 'grid size-7 place-items-center rounded-[8px] text-secondary hover:bg-quinary'
-        }
-        aria-label="Lyric settings"
-        onClick={() => setSettings(true)}
-      >
-        <Settings2 size={16} />
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          className={
+            full
+              ? 'grid size-8 place-items-center rounded-[10px] text-white/80 hover:text-white hover:bg-white/15 transition cursor-pointer'
+              : 'grid size-7 place-items-center rounded-[8px] text-secondary hover:bg-quinary cursor-pointer'
+          }
+          aria-label="Translate lyrics"
+          title="Translate lyrics"
+          onClick={() => void toggleLyricsTranslation()}
+        >
+          <Languages size={full ? 16 : 14} />
+        </button>
+        <button
+          className={
+            full
+              ? 'grid size-8 place-items-center rounded-[10px] text-white/80 hover:text-white hover:bg-white/15 transition cursor-pointer'
+              : 'grid size-7 place-items-center rounded-[8px] text-secondary hover:bg-quinary cursor-pointer'
+          }
+          aria-label="Romanize lyrics"
+          title="Romanize lyrics"
+          onClick={() => void toggleLyricsRomanization()}
+        >
+          <Speech size={full ? 16 : 14} />
+        </button>
+        <button
+          className={
+            full
+              ? 'grid size-8 place-items-center rounded-[10px] text-white/80 hover:text-white hover:bg-white/15 transition cursor-pointer'
+              : 'grid size-7 place-items-center rounded-[8px] text-secondary hover:bg-quinary cursor-pointer'
+          }
+          aria-label="Lyric settings"
+          title="Lyric settings"
+          onClick={() => setSettings(true)}
+        >
+          <Settings2 size={16} />
+        </button>
+      </div>
       {anchor && (
         <Menu anchor={anchor} placement="below-end" onClose={close} label="Lyrics provider">
           <MenuItem checked={!picked} onSelect={() => (close(), pick(videoId, null))}>
@@ -348,9 +415,7 @@ export function ProviderPicker({
             icon={<Languages size={15} />}
             onSelect={() => {
               close();
-              const amLyrics = document.querySelector('am-lyrics') as (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
-              const btn = amLyrics?.shadowRoot?.querySelector('button[title="Toggle Translation"]') as HTMLButtonElement | null;
-              btn?.click();
+              void toggleLyricsTranslation();
             }}
           >
             Translate Lyrics
@@ -359,9 +424,7 @@ export function ProviderPicker({
             icon={<Speech size={15} />}
             onSelect={() => {
               close();
-              const amLyrics = document.querySelector('am-lyrics') as (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
-              const btn = amLyrics?.shadowRoot?.querySelector('button[title="Toggle Romanization"]') as HTMLButtonElement | null;
-              btn?.click();
+              void toggleLyricsRomanization();
             }}
           >
             Romanize Lyrics
